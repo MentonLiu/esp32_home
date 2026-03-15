@@ -1,0 +1,427 @@
+{
+    "version": 1,
+    "author": "liubailiang",
+    "editor": "wokwi",
+    "parts": [
+        {
+            "type": "board-esp32-devkit-c-v4",
+            "id": "esp",
+            "top": 0,
+            "left": -33.56,
+            "attrs": {}
+        },
+        {
+            "type": "wokwi-ir-receiver",
+            "id": "ir1",
+            "top": -164.55,
+            "left": -241.78,
+            "attrs": {}
+        },
+        {
+            "type": "wokwi-buzzer",
+            "id": "bz1",
+            "top": -170.4,
+            "left": -132.6,
+            "attrs": {
+                "volume": "0.1"
+            }
+        },
+        {
+            "type": "wokwi-servo",
+            "id": "servo1",
+            "top": -203.6,
+            "left": 316.8,
+            "attrs": {
+                "hornColor": "#ccc"
+            }
+        },
+        {
+            "type": "wokwi-servo",
+            "id": "servo2",
+            "top": -98,
+            "left": 316.8,
+            "attrs": {
+                "hornColor": "white"
+            }
+        },
+        {
+            "type": "wokwi-servo",
+            "id": "servo3",
+            "top": 26.8,
+            "left": 316.8,
+            "attrs": {
+                "hornColor": "black"
+            }
+        },
+        {
+            "type": "wokwi-servo",
+            "id": "servo4",
+            "top": 151.6,
+            "left": 316.8,
+            "attrs": {
+                "hornColor": "red"
+            }
+        },
+        {
+            "type": "wokwi-dht22",
+            "id": "dht1",
+            "top": -172.5,
+            "left": -341.4,
+            "attrs": {}
+        },
+        {
+            "type": "wokwi-photoresistor-sensor",
+            "id": "ldr1",
+            "top": 32,
+            "left": -527.2,
+            "attrs": {}
+        },
+        {
+            "type": "wokwi-ntc-temperature-sensor",
+            "id": "ntc1",
+            "top": 146.6,
+            "left": -528.6,
+            "attrs": {}
+        },
+        {
+            "type": "wokwi-gas-sensor",
+            "id": "gas1",
+            "top": 261.9,
+            "left": -521,
+            "attrs": {}
+        },
+        {
+            "type": "wokwi-relay-module",
+            "id": "relay1",
+            "top": 307.4,
+            "left": 326.4,
+            "attrs": {}
+        }
+    ],
+    "connections": [
+        [
+            "esp:TX",
+            "$serialMonitor:RX",
+            "",
+            []
+        ],
+        [
+            "esp:RX",
+            "$serialMonitor:TX",
+            "",
+            []
+        ],
+        [
+            "esp:GND.1",
+            "ir1:GND",
+            "black",
+            [
+                "h-28.8",
+                "v-220.8"
+            ]
+        ],
+        [
+            "esp:3V3",
+            "ir1:VCC",
+            "red",
+            [
+                "h-19.2",
+                "v-76.8",
+                "h-163.05"
+            ]
+        ],
+        [
+            "esp:5",
+            "ir1:DAT",
+            "green",
+            [
+                "h28.8",
+                "v-144",
+                "h-297.6"
+            ]
+        ],
+        [
+            "esp:GND.2",
+            "bz1:GND",
+            "black",
+            [
+                "v-48",
+                "h-76.8"
+            ]
+        ],
+        [
+            "esp:12",
+            "bz1:I/O",
+            "green",
+            [
+                "v-28.8",
+                "h-86.4"
+            ]
+        ],
+        [
+            "esp:GND.3",
+            "servo1:GND",
+            "black",
+            [
+                "v9.6",
+                "h240",
+                "v-268.8"
+            ]
+        ],
+        [
+            "esp:5V",
+            "servo1:V+",
+            "red",
+            [
+                "v19.2",
+                "h288.15",
+                "v-364.9"
+            ]
+        ],
+        [
+            "esp:19",
+            "servo1:PWM",
+            "orange",
+            [
+                "v38.4",
+                "h220.8",
+                "v-269"
+            ]
+        ],
+        [
+            "esp:GND.3",
+            "servo2:GND",
+            "black",
+            [
+                "v9.6",
+                "h240",
+                "v-163.2"
+            ]
+        ],
+        [
+            "esp:5V",
+            "servo2:V+",
+            "red",
+            [
+                "v19.2",
+                "h249.6",
+                "v-163.2"
+            ]
+        ],
+        [
+            "esp:21",
+            "servo2:PWM",
+            "orange",
+            [
+                "v38.4",
+                "h182.4",
+                "v-144.2"
+            ]
+        ],
+        [
+            "esp:GND.3",
+            "servo3:GND",
+            "black",
+            [
+                "h48",
+                "v-9.6"
+            ]
+        ],
+        [
+            "esp:5V",
+            "servo3:V+",
+            "red",
+            [
+                "v28.8",
+                "h307.35",
+                "v-144.1"
+            ]
+        ],
+        [
+            "esp:22",
+            "servo3:PWM",
+            "orange",
+            [
+                "h19.2",
+                "h182.4",
+                "v47.8"
+            ]
+        ],
+        [
+            "esp:GND.3",
+            "servo4:GND",
+            "black",
+            [
+                "h240",
+                "v115.2"
+            ]
+        ],
+        [
+            "esp:5V",
+            "servo4:V+",
+            "red",
+            [
+                "v48",
+                "h316.95",
+                "v-38.5"
+            ]
+        ],
+        [
+            "esp:14",
+            "servo4:PWM",
+            "orange",
+            [
+                "h-9.45",
+                "v105.6",
+                "h345.6",
+                "v-19.4"
+            ]
+        ],
+        [
+            "esp:GND.1",
+            "dht1:GND",
+            "black",
+            [
+                "h-28.8",
+                "v-230.4"
+            ]
+        ],
+        [
+            "esp:3V3",
+            "dht1:VCC",
+            "red",
+            [
+                "h-48",
+                "v-67.2",
+                "h-249.45"
+            ]
+        ],
+        [
+            "esp:13",
+            "dht1:SDA",
+            "green",
+            [
+                "v-28.8",
+                "h-268.8"
+            ]
+        ],
+        [
+            "esp:GND.2",
+            "ldr1:GND",
+            "black",
+            [
+                "v-48",
+                "h-393.6",
+                "v77.2"
+            ]
+        ],
+        [
+            "esp:3V3",
+            "ldr1:VCC",
+            "red",
+            [
+                "h-38.25",
+                "v19.2"
+            ]
+        ],
+        [
+            "esp:34",
+            "ldr1:AO",
+            "blue",
+            [
+                "h-47.85",
+                "v48",
+                "h-278.4"
+            ]
+        ],
+        [
+            "esp:GND.2",
+            "ntc1:GND",
+            "black",
+            [
+                "v-28.8",
+                "h-403.2",
+                "v172.8"
+            ]
+        ],
+        [
+            "esp:3V3",
+            "ntc1:VCC",
+            "red",
+            [
+                "h-57.45",
+                "v153.6"
+            ]
+        ],
+        [
+            "esp:39",
+            "ntc1:OUT",
+            "blue",
+            [
+                "v-28.8",
+                "h-480",
+                "v115.2"
+            ]
+        ],
+        [
+            "esp:GND.2",
+            "gas1:GND",
+            "black",
+            [
+                "v-38.4",
+                "h-336",
+                "v308"
+            ]
+        ],
+        [
+            "esp:5V",
+            "gas1:VCC",
+            "red",
+            [
+                "h-38.25",
+                "v105.6",
+                "h-288",
+                "v0.9"
+            ]
+        ],
+        [
+            "esp:36",
+            "gas1:AO",
+            "blue",
+            [
+                "v-19.2",
+                "h-480",
+                "v230.4"
+            ]
+        ],
+        [
+            "esp:GND.3",
+            "relay1:GND",
+            "black",
+            [
+                "h230.4",
+                "v250"
+            ]
+        ],
+        [
+            "esp:5V",
+            "relay1:VCC",
+            "red",
+            [
+                "v57.6",
+                "h355.35"
+            ]
+        ],
+        [
+            "esp:18",
+            "relay1:IN",
+            "green",
+            [
+                "h57.6",
+                "h144",
+                "v240.2"
+            ]
+        ]
+    ],
+    "dependencies": {}
+}
