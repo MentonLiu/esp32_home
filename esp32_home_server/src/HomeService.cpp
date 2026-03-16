@@ -1,3 +1,15 @@
+/**
+ * @file HomeService.cpp
+ * @brief 家庭智能服务实现文件
+ * 
+ * 实现完整的智能家居服务逻辑：
+ * - 系统初始化与配置
+ * - 传感器数据采集与发布
+ * - 自动化控制(定时窗帘)
+ * - 异常检测与报警
+ * - Web界面与MQTT控制
+ */
+
 #include "HomeService.h"
 
 #include <ArduinoJson.h>
@@ -8,20 +20,27 @@
 
 namespace
 {
-    const char *kStaSsid = "home-WiFi";
-    const char *kStaPassword = "";
-    const char *kApSsid = "esp32-server";
-    const char *kApPassword = "lbl450981";
+    // WiFi配置
+    const char *kStaSsid = "home-WiFi";       // WiFi名称
+    const char *kStaPassword = "";             // WiFi密码(空)
+    const char *kApSsid = "esp32-server";     // AP热点名称
+    const char *kApPassword = "lbl450981";    // AP热点密码
 
-    const char *kMqttHost = "example.mqtt.server";
-    const uint16_t kMqttPort = 1883;
-    const char *kMqttClientId = "esp32-home-server";
+    // MQTT配置
+    const char *kMqttHost = "example.mqtt.server";  // MQTT服务器地址
+    const uint16_t kMqttPort = 1883;               // MQTT端口
+    const char *kMqttClientId = "esp32-home-server";  // 客户端ID
 
-    const char *kSensorTopic = "esp32/home/sensors";
-    const char *kStatusTopic = "esp32/home/status";
-    const char *kAlarmTopic = "esp32/home/alarm";
+    // MQTT主题
+    const char *kSensorTopic = "esp32/home/sensors";  // 传感器数据主题
+    const char *kStatusTopic = "esp32/home/status";   // 状态主题
+    const char *kAlarmTopic = "esp32/home/alarm";     // 报警主题
 } // namespace
 
+/**
+ * @brief 构造函数
+ * 初始化所有子系统的硬件引脚
+ */
 HomeService::HomeService()
     : sensors_(pins::DHT_DATA, DHT22, pins::LDR_ANALOG, pins::MQ2_ANALOG, pins::FLAME_ANALOG),
       fan_(pins::RELAY_FAN),
@@ -30,24 +49,32 @@ HomeService::HomeService()
       ir_(pins::IR_RX, pins::IR_TX),
       net_(kStaSsid, kStaPassword, kApSsid, kApPassword)
 {
+    // 编译时间作为备用时间基准(无NTP时使用)
     const int hh = (__TIME__[0] - '0') * 10 + (__TIME__[1] - '0');
     const int mm = (__TIME__[3] - '0') * 10 + (__TIME__[4] - '0');
     const int ss = (__TIME__[6] - '0') * 10 + (__TIME__[7] - '0');
     bootBaseSeconds_ = static_cast<uint32_t>(hh * 3600 + mm * 60 + ss);
 }
 
+/**
+ * @brief 系统初始化
+ * 启动所有子系统
+ */
 void HomeService::begin()
 {
-    Serial.begin(115200);
+    Serial.begin(115200);  // 启动串口
 
+    // 初始化所有传感器和执行器
     sensors_.begin();
     fan_.begin();
     curtain_.begin();
     buzzer_.begin();
     ir_.begin();
 
+    // 初始化网络连接
     net_.begin();
     net_.configureCloudMqtt(kMqttHost, kMqttPort, kMqttClientId);
+    // 设置MQTT消息处理回调
     net_.setMqttHandler([this](char *topic, uint8_t *payload, unsigned int length)
                         {
     String body;
@@ -58,25 +85,32 @@ void HomeService::begin()
     processControlCommand(body);
     publishStatus(kStatusTopic, "command", String("received topic=") + topic); });
 
+    // 配置Web路由
     setupWebRoutes();
     net_.webServer().begin();
 
+    // 如果已连接互联网，配置NTP时间同步
     if (net_.isInternetConnected())
     {
-        configTime(8 * 3600, 0, "pool.ntp.org", "ntp.aliyun.com");
+        configTime(8 * 3600, 0, "pool.ntp.org", "ntp.aliyun.com");  // UTC+8
         ntpConfigured_ = true;
     }
 
     Serial.println("Home service started");
 }
 
+/**
+ * @brief 主循环
+ * 处理网络、传感器、自动化和报警
+ */
 void HomeService::loop()
 {
-    net_.loop();
-    handleSensorAndPublish();
-    handleAutomation();
-    handleAlerts();
+    net_.loop();                    // 处理网络请求
+    handleSensorAndPublish();       // 采集并发布传感器数据
+    handleAutomation();             // 执行自动化任务
+    handleAlerts();                 // 检查并处理报警
 
+    // 检查红外信号接收
     const IRDecodedSignal signal = ir_.receive();
     if (signal.available)
     {
@@ -92,8 +126,13 @@ void HomeService::loop()
     }
 }
 
+/**
+ * @brief 配置Web服务器路由
+ * 提供Web控制界面和API
+ */
 void HomeService::setupWebRoutes()
 {
+    // 首页 - Web控制界面
     net_.webServer().on("/", HTTP_GET, [this]()
                         {
     const char html[] = R"HTML(
@@ -174,15 +213,22 @@ fetchStatus();
 )HTML";
     net_.webServer().send(200, "text/html", html); });
 
+    // API: 获取状态
     net_.webServer().on("/api/status", HTTP_GET, [this]()
                         { net_.webServer().send(200, "application/json", buildStatusJson(true)); });
 
+    // API: 控制命令
     net_.webServer().on("/api/control", HTTP_POST, [this]()
                         {
     processControlCommand(net_.webServer().arg("plain"));
     net_.webServer().send(200, "application/json", "{\"ok\":true}"); });
 }
 
+/**
+ * @brief 处理控制命令
+ * 解析JSON命令并执行相应操作
+ * 支持设备: fan, curtain, ir
+ */
 void HomeService::processControlCommand(const String &jsonText)
 {
     DynamicJsonDocument doc(512);
@@ -195,6 +241,7 @@ void HomeService::processControlCommand(const String &jsonText)
 
     const String device = doc["device"] | "";
 
+    // 风扇控制
     if (device == "fan")
     {
         const String mode = doc["mode"] | "";
@@ -215,6 +262,7 @@ void HomeService::processControlCommand(const String &jsonText)
             fan_.setMode(FanMode::High);
         }
 
+        // 支持自定义转速
         if (doc.containsKey("speedPercent"))
         {
             fan_.setSpeedPercent(doc["speedPercent"].as<uint8_t>());
@@ -222,12 +270,15 @@ void HomeService::processControlCommand(const String &jsonText)
         return;
     }
 
+    // 窗帘控制
     if (device == "curtain")
     {
+        // 自定义角度
         if (doc.containsKey("angle"))
         {
             curtain_.setAngle(doc["angle"].as<uint8_t>());
         }
+        // 预设等级
         if (doc.containsKey("preset"))
         {
             curtain_.setPresetLevel(doc["preset"].as<uint8_t>());
@@ -235,6 +286,7 @@ void HomeService::processControlCommand(const String &jsonText)
         return;
     }
 
+    // 红外控制
     if (device == "ir")
     {
         const String action = doc["action"] | "";
@@ -251,19 +303,26 @@ void HomeService::processControlCommand(const String &jsonText)
     publishStatus(kStatusTopic, "error", "unknown_device");
 }
 
+/**
+ * @brief 处理传感器数据采集与发布
+ * 定期读取传感器并通过MQTT发布
+ */
 void HomeService::handleSensorAndPublish()
 {
+    // 更新传感器数据
     if (!sensors_.update())
     {
         return;
     }
 
+    // 发布间隔控制(500ms)
     if (millis() - lastSensorPublishMs_ < 500)
     {
         return;
     }
     lastSensorPublishMs_ = millis();
 
+    // 构建传感器数据JSON
     const SensorSnapshot &s = sensors_.snapshot();
     DynamicJsonDocument doc(512);
     doc["sensorType"] = "home_snapshot";
@@ -285,14 +344,20 @@ void HomeService::handleSensorAndPublish()
     net_.mqttPublish(kSensorTopic, payload);
 }
 
+/**
+ * @brief 处理自动化任务
+ * 定时自动开关窗帘
+ */
 void HomeService::handleAutomation()
 {
+    // 执行间隔控制(1秒)
     if (millis() - lastAutomationMs_ < 1000)
     {
         return;
     }
     lastAutomationMs_ = millis();
 
+    // 尝试配置NTP(如果之前未成功)
     if (net_.isInternetConnected() && !ntpConfigured_)
     {
         configTime(8 * 3600, 0, "pool.ntp.org", "ntp.aliyun.com");
@@ -303,51 +368,63 @@ void HomeService::handleAutomation()
     const int minute = currentMinute();
     const uint32_t dayIndex = currentDayIndex();
 
+    // 早上7点自动开窗帘
     if (hour == 7 && minute == 0 && lastOpenDay_ != dayIndex)
     {
-        curtain_.setPresetLevel(4);
+        curtain_.setPresetLevel(4);  // 全开
         lastOpenDay_ = dayIndex;
         publishStatus(kStatusTopic, "automation", "curtain_open_07_00");
     }
 
+    // 晚上10点自动关窗帘
     if (hour == 22 && minute == 0 && lastCloseDay_ != dayIndex)
     {
-        curtain_.setPresetLevel(0);
+        curtain_.setPresetLevel(0);  // 全关
         lastCloseDay_ = dayIndex;
         publishStatus(kStatusTopic, "automation", "curtain_close_22_00");
     }
 }
 
+/**
+ * @brief 处理报警逻辑
+ * 检测异常并触发相应动作
+ */
 void HomeService::handleAlerts()
 {
     const SensorSnapshot &s = sensors_.snapshot();
 
+    // 烟雾浓度高时自动开启风扇
     if (s.mq2Percent >= 75)
     {
         fan_.setMode(FanMode::High);
     }
 
+    // 烟雾浓度极高时发出蜂鸣警报(每秒一次)
     if (s.mq2Percent >= 90 && millis() - lastHighSmokeBeepMs_ >= 1000)
     {
         lastHighSmokeBeepMs_ = millis();
         buzzer_.beep(2600, 80);
     }
 
+    // 火焰检测处理
     if (s.flameDetected)
     {
+        // 首次检测到火焰，记录时间
         if (flameDetectedSinceMs_ == 0)
         {
             flameDetectedSinceMs_ = millis();
             fireAlarmReported_ = false;
         }
 
+        // 火焰持续45秒后开始警报模式
         const unsigned long flameDuration = millis() - flameDetectedSinceMs_;
         if (flameDuration >= 45000 && millis() - lastFlamePatternMs_ >= 2500)
         {
             lastFlamePatternMs_ = millis();
-            buzzer_.patternShortShortLong();
+            buzzer_.patternShortShortLong();  // 播放警报模式
         }
 
+        // 火焰持续5分钟后上报火警服务
         if (flameDuration >= 300000 && !fireAlarmReported_ && net_.isCloudMode())
         {
             fireAlarmReported_ = true;
@@ -356,11 +433,15 @@ void HomeService::handleAlerts()
     }
     else
     {
+        // 火焰消失，重置状态
         flameDetectedSinceMs_ = 0;
         fireAlarmReported_ = false;
     }
 }
 
+/**
+ * @brief 发布状态消息到MQTT
+ */
 void HomeService::publishStatus(const char *topic, const String &type, const String &message) const
 {
     DynamicJsonDocument doc(512);
@@ -373,23 +454,30 @@ void HomeService::publishStatus(const char *topic, const String &type, const Str
     const_cast<ConnectivityManager &>(net_).mqttPublish(topic, payload);
 }
 
+/**
+ * @brief 构建状态JSON
+ * 用于Web API响应
+ */
 String HomeService::buildStatusJson(bool includeMeta) const
 {
     const SensorSnapshot &s = sensors_.snapshot();
 
     DynamicJsonDocument doc(768);
+    // 包含网络信息
     if (includeMeta)
     {
         doc["mode"] = net_.isCloudMode() ? "cloud" : "local_ap";
         doc["ip"] = net_.localIP().toString();
     }
 
+    // 传感器数据
     doc["temperatureC"] = s.temperatureC;
     doc["humidityPercent"] = s.humidityPercent;
     doc["lightPercent"] = s.lightPercent;
     doc["mq2Percent"] = s.mq2Percent;
     doc["smokeLevel"] = s.smokeLevel;
     doc["flameDetected"] = s.flameDetected;
+    // 执行器状态
     doc["fanSpeedPercent"] = fan_.speedPercent();
     doc["curtainAngle"] = curtain_.angle();
     doc["error"] = s.hasError;
@@ -400,12 +488,16 @@ String HomeService::buildStatusJson(bool includeMeta) const
     return out;
 }
 
+/**
+ * @brief 获取当前小时
+ * 优先使用NTP时间，其次使用编译时间估算
+ */
 int HomeService::currentHour() const
 {
     if (ntpConfigured_)
     {
         time_t now = time(nullptr);
-        if (now > 100000)
+        if (now > 100000)  // NTP时间有效
         {
             struct tm timeinfo;
             localtime_r(&now, &timeinfo);
@@ -413,10 +505,14 @@ int HomeService::currentHour() const
         }
     }
 
+    // 无NTP时使用启动后的运行时间估算
     const uint32_t seconds = bootBaseSeconds_ + millis() / 1000;
     return (seconds / 3600) % 24;
 }
 
+/**
+ * @brief 获取当前分钟
+ */
 int HomeService::currentMinute() const
 {
     if (ntpConfigured_)
@@ -434,6 +530,10 @@ int HomeService::currentMinute() const
     return (seconds / 60) % 60;
 }
 
+/**
+ * @brief 获取当前天索引
+ * 用于判断日期变化
+ */
 uint32_t HomeService::currentDayIndex() const
 {
     if (ntpConfigured_)
