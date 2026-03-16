@@ -1,8 +1,9 @@
 #include <Arduino.h>
 
-void setup() {}
+#include "HomeService.h"
 
-void loop()
-{
-  // put your main code here, to run repeatedly:
-}
+HomeService homeService;
+
+void setup() { homeService.begin(); }
+
+void loop() { homeService.loop(); }
