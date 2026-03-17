@@ -45,7 +45,7 @@ namespace
  * 初始化所有子系统的硬件引脚
  */
 HomeService::HomeService()
-    : sensors_(pins::DHT_DATA, DHT22, pins::LDR_ANALOG, pins::MQ2_ANALOG, pins::FLAME_ANALOG),
+    : sensors_(pins::DHT_DATA, pins::LDR_ANALOG, pins::MQ2_ANALOG, pins::FLAME_ANALOG),
       fan_(pins::RELAY_FAN),
       curtain_(pins::SERVO_1, pins::SERVO_2),
       buzzer_(pins::BUZZER),

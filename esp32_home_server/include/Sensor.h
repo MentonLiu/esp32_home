@@ -3,7 +3,7 @@
  * @brief 传感器头文件
  * 
  * 定义所有传感器相关的类：
- * - DHTSensor: DHT22/DHT11温湿度传感器
+ * - DHTSensor: DHT11温湿度传感器
  * - AnalogPercentSensor: 模拟量传感器(光敏、烟雾、火焰)
  * - SensorHub: 传感器集线器，统一管理所有传感器
  * 
@@ -35,7 +35,7 @@ struct SensorSnapshot
 
 /**
  * @brief DHT温湿度传感器类
- * @details 支持DHT11/DHT22等型号
+ * @details 固定使用DHT11型号
  */
 class DHTSensor
 {
@@ -43,9 +43,8 @@ public:
     /**
      * @brief 构造函数
      * @param pin 数据引脚
-     * @param type DHT传感器类型 (DHT11/DHT22等)
      */
-    DHTSensor(uint8_t pin, uint8_t type);
+    explicit DHTSensor(uint8_t pin);
 
     /**
      * @brief 初始化传感器
@@ -105,12 +104,11 @@ public:
     /**
      * @brief 构造函数
      * @param dhtPin DHT传感器引脚
-     * @param dhtType DHT传感器类型
      * @param ldrPin 光敏电阻引脚
      * @param mq2Pin MQ2烟雾传感器引脚
      * @param flamePin 火焰传感器引脚
      */
-    SensorHub(uint8_t dhtPin, uint8_t dhtType, uint8_t ldrPin, uint8_t mq2Pin, uint8_t flamePin);
+    SensorHub(uint8_t dhtPin, uint8_t ldrPin, uint8_t mq2Pin, uint8_t flamePin);
 
     /**
      * @brief 初始化所有传感器

@@ -21,7 +21,7 @@
 当前引脚定义见 include/pins.h。
 
 主要映射：
-- DHT22 数据脚: GPIO13（保留 DHT11 兼容接口）
+- DHT11 数据脚: GPIO13
 - 光照传感器: GPIO34
 - MQ2 烟雾传感器: GPIO36
 - 火焰传感器占位: GPIO39

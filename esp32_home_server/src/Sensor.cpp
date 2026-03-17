@@ -11,7 +11,7 @@
 
 // ============ DHTSensor 实现 ============
 
-DHTSensor::DHTSensor(uint8_t pin, uint8_t type) : dht_(pin, type) {}
+DHTSensor::DHTSensor(uint8_t pin) : dht_(pin, DHT11) {}
 
 void DHTSensor::begin() { dht_.begin(); }
 
@@ -69,8 +69,8 @@ uint8_t AnalogPercentSensor::readPercent() const
  * @brief 构造函数
  * @details 初始化所有子传感器，LDR配置为翻转模式(光线越强值越高)
  */
-SensorHub::SensorHub(uint8_t dhtPin, uint8_t dhtType, uint8_t ldrPin, uint8_t mq2Pin, uint8_t flamePin)
-    : dht_(dhtPin, dhtType), ldr_(ldrPin, true), mq2_(mq2Pin, false), flame_(flamePin, false) {}
+SensorHub::SensorHub(uint8_t dhtPin, uint8_t ldrPin, uint8_t mq2Pin, uint8_t flamePin)
+    : dht_(dhtPin), ldr_(ldrPin, true), mq2_(mq2Pin, false), flame_(flamePin, false) {}
 
 void SensorHub::begin()
 {

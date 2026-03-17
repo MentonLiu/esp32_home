@@ -14,12 +14,9 @@
 namespace pins
 {
     /**
-     * @brief DHT系列温湿度传感器引脚定义
-     * DHT22: 4线传感器，支持更宽的温度范围和更高精度
-     * DHT11_DATA_COMPAT: 兼容DHT11 3针模块的引脚
+     * @brief DHT11温湿度传感器引脚定义
      */
     static constexpr uint8_t DHT_DATA = 13;
-    static constexpr uint8_t DHT11_DATA_COMPAT = DHT_DATA;
 
     /**
      * @brief 模拟传感器引脚定义

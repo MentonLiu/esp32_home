@@ -113,8 +113,8 @@
             const data = await res.json();
             document.getElementById('net').textContent = `mode=${data.mode} ip=${data.ip}`;
             document.getElementById('sensorGrid').innerHTML = `
-    <div><div class='k'>temperature</div><div class='v'>${data.temperatureC} C</div></div>
-    <div><div class='k'>humidity</div><div class='v'>${data.humidityPercent} %</div></div>
+    <div><div class='k'>temperature (DHT11)</div><div class='v'>${data.temperatureC} C</div></div>
+    <div><div class='k'>humidity (DHT11)</div><div class='v'>${data.humidityPercent} %</div></div>
     <div><div class='k'>light</div><div class='v'>${data.lightPercent} %</div></div>
     <div><div class='k'>smoke</div><div class='v'>${data.smokeLevel} (${data.mq2Percent}%)</div></div>
     <div><div class='k'>flame</div><div class='v'>${data.flameDetected ? 'YES' : 'NO'}</div></div>
