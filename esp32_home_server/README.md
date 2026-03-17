@@ -5,7 +5,7 @@
 
 核心能力：
 - 传感器采集：温湿度、光照、烟雾（MQ2）、火焰状态
-- 设备控制：风扇继电器（含速度档位）、双舵机窗帘、蜂鸣器、红外收发
+- 设备控制：风扇继电器（含速度档位）、双舵机窗帘、蜂鸣器、红外桥接控制（ESP8266）
 - 通信模式：
   - 可联网时：连接家用 Wi-Fi，使用 MQTT 对接云上位机
   - 无网络时：自动切换本地 AP 热点并提供本地网页控制台
@@ -28,8 +28,9 @@
 - 继电器风扇: GPIO18
 - 舵机: GPIO19 / GPIO21（窗帘主控）
 - 蜂鸣器: GPIO12
-- 红外接收: GPIO5
-- 红外发射: GPIO27
+- 红外桥接串口 RX: GPIO16（接 ESP8266 TX）
+- 红外桥接串口 TX: GPIO17（接 ESP8266 RX）
+- 红外桥接波特率: 115200
 
 注意：dragram.json 中没有独立火焰模块，当前使用 GPIO39 作为火焰模拟输入占位。
 
@@ -41,7 +42,6 @@
 - Adafruit Unified Sensor
 - ESP32Servo
 - NTPClient
-- IRremote
 
 ## 5. 环境准备
 1. 安装 VS Code 与 PlatformIO 插件。
@@ -129,11 +129,31 @@ pio device monitor -b 115200
 {"device":"curtain","preset":2}
 ```
 
-红外 NEC 发送：
+红外 NEC 发送（兼容旧接口）：
 
 ```json
 {"device":"ir","action":"send_nec","address":1,"command":2,"repeats":0}
 ```
+
+红外通用协议发送（推荐）：
+
+```json
+{"device":"ir","action":"send","protocol":"NEC","address":1,"command":2,"repeats":0}
+```
+
+红外扩展动作（由ESP8266定义具体语义）：
+
+```json
+{"device":"ir","action":"learn","args":{"slot":"tv_power"}}
+```
+
+直接下发完整JSON命令（最高扩展性）：
+
+```json
+{"device":"ir","action":"send_json","commandJson":"{\"device\":\"ir\",\"action\":\"raw_send\",\"args\":{\"raw\":[9000,4500,560,560]}}"}
+```
+
+说明：ESP32将以上命令通过UART2按行发送到ESP8266，ESP8266负责红外收发与协议处理。
 
 ## 11. 自动化与报警逻辑
 - 定时窗帘：
@@ -163,7 +183,8 @@ pio device monitor -b 115200
 - 确认已连接 ESP32 AP，或确认设备与电脑在同一局域网。
 
 4. 红外功能异常
-- 检查红外接收/发射引脚、电源与管脚定义是否一致。
+- 检查ESP32与ESP8266 UART接线（GPIO16/17交叉连接）和波特率是否一致。
+- 检查ESP8266固件是否支持对应 action/protocol。
 
 ## 14. 后续建议
 - 将敏感配置（Wi-Fi、MQTT）提取到独立配置文件或 NVS。

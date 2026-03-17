@@ -6,12 +6,10 @@
  * - 风扇PWM调速
  * - 双舵机窗帘控制
  * - 蜂鸣器报警
- * - 红外收发
+ * - 红外桥接命令下发(ESP32 -> ESP8266)
  */
 
 #include "Controllerr.h"
-
-#include <IRremote.hpp>
 
 // ============ RelayFanController 实现 ============
 
@@ -163,73 +161,91 @@ void BuzzerController::patternShortShortLong()
 
 // ============ IRController 实现 ============
 
-IRController::IRController(uint8_t rxPin, uint8_t txPin) : rxPin_(rxPin), txPin_(txPin) {}
+IRController::IRController(uint8_t rxPin, uint8_t txPin, uint32_t baudRate)
+    : rxPin_(rxPin), txPin_(txPin), baudRate_(baudRate) {}
 
 /**
- * @brief 初始化红外模块
- * 启动红外接收和发送功能
+ * @brief 绑定桥接串口
+ * @details
+ * 串口对象由HomeService统一初始化(包括波特率与引脚)，本类仅保存指针并通过该串口发送命令。
  */
-void IRController::begin()
+void IRController::begin(Stream &serial)
 {
-    IrReceiver.begin(rxPin_, DISABLE_LED_FEEDBACK);  // 启动接收，禁用LED反馈
-    IrSender.begin(txPin_);                           // 启动发送
+    serial_ = &serial;
 }
 
 /**
- * @brief 发送NEC协议红外信号
- * @param address 目标设备地址
- * @param command 控制命令
- * @param repeats 重复发送次数
+ * @brief 发送NEC协议红外命令
+ * @details 发送给ESP8266，由ESP8266执行实际红外发射
  */
-void IRController::sendNEC(uint16_t address, uint8_t command, uint8_t repeats) const
+bool IRController::sendNEC(uint16_t address, uint8_t command, uint8_t repeats)
 {
-    IrSender.sendNEC(address, command, repeats);
+    return sendProtocolCommand("NEC", address, command, repeats);
 }
 
 /**
- * @brief 接收并解码红外信号
- * @return IRDecodedSignal 包含协议、地址、命令等信息的结构体
+ * @brief 发送通用协议命令
+ * @details 命令格式统一为JSON，便于ESP8266端扩展多协议
+ */
+bool IRController::sendProtocolCommand(const String &protocol, uint32_t address, uint32_t command, uint8_t repeats)
+{
+    String payload = String("{\"device\":\"ir\",\"action\":\"send\",\"protocol\":\"") + protocol +
+                     "\",\"address\":" + String(address) +
+                     ",\"command\":" + String(command) +
+                     ",\"repeats\":" + String(repeats) + "}";
+    return sendJsonCommand(payload);
+}
+
+/**
+ * @brief 发送扩展动作命令
+ * @details args默认是空JSON对象，便于后续扩展如学习模式、停止学习、原始码发送
+ */
+bool IRController::sendActionCommand(const String &action, const String &args)
+{
+    String payload = String("{\"device\":\"ir\",\"action\":\"") + action + "\",\"args\":" + args + "}";
+    return sendJsonCommand(payload);
+}
+
+/**
+ * @brief 直接发送完整JSON命令
+ * @details 该接口为上层保留最大扩展性，便于快速支持新字段
+ */
+bool IRController::sendJsonCommand(const String &jsonCommand)
+{
+    return sendLine(jsonCommand);
+}
+
+/**
+ * @brief 读取ESP8266返回的一行消息
+ * @details 约定ESP8266每条状态消息以换行符结尾
  */
 IRDecodedSignal IRController::receive()
 {
     IRDecodedSignal result;
-    // 检查是否有可接收的信号
-    if (!IrReceiver.decode())
+    if (serial_ == nullptr || !serial_->available())
     {
-        return result;  // 无信号返回空结果
+        return result;
     }
 
-    // 成功解码，填充结果结构体
-    result.available = true;
-    result.protocol = protocolToString(IrReceiver.decodedIRData.protocol);
-    result.address = IrReceiver.decodedIRData.address;
-    result.command = IrReceiver.decodedIRData.command;
-    result.rawData = IrReceiver.decodedIRData.decodedRawData;
-
-    IrReceiver.resume();  // 准备接收下一个信号
+    result.message = serial_->readStringUntil('\n');
+    result.message.trim();
+    result.available = result.message.length() > 0;
     return result;
 }
 
-/**
- * @brief 将协议编号转换为可读字符串
- * @param protocol 协议编号
- * @return String 协议名称
- */
-String IRController::protocolToString(uint8_t protocol) const
+String IRController::lastCommand() const { return lastCommand_; }
+
+uint32_t IRController::baudRate() const { return baudRate_; }
+
+bool IRController::sendLine(const String &line)
 {
-    switch (protocol)
+    if (serial_ == nullptr)
     {
-    case NEC:
-        return "NEC";
-    case SONY:
-        return "SONY";
-    case SAMSUNG:
-        return "SAMSUNG";
-    case RC5:
-        return "RC5";
-    case RC6:
-        return "RC6";
-    default:
-        return "UNKNOWN";
+        return false;
     }
+
+    // 串口桥接协议采用一行一条命令，方便ESP8266按行解析。
+    serial_->println(line);
+    lastCommand_ = line;
+    return true;
 }

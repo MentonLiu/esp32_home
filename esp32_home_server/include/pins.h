@@ -59,9 +59,18 @@ namespace pins
     static constexpr uint8_t BUZZER = 12;
 
     /**
-     * @brief 红外收发引脚
-     * IR_RX: 红外接收，用于接收遥控器信号
-     * IR_TX: 红外发送，用于控制空调/电视等设备
+     * @brief ESP8266红外桥接串口引脚
+     * @details
+     * ESP32通过UART2向外接ESP8266模块发送红外控制命令，
+     * ESP8266负责真正的红外收发工作。
+     */
+    static constexpr uint8_t IR_BRIDGE_UART_RX = 16;
+    static constexpr uint8_t IR_BRIDGE_UART_TX = 17;
+    static constexpr uint32_t IR_BRIDGE_UART_BAUD = 115200;
+
+    /**
+     * @brief 兼容保留字段
+     * @details 原本ESP32直连红外收发器时使用，现阶段默认不启用。
      */
     static constexpr uint8_t IR_RX = 5;
     static constexpr uint8_t IR_TX = 27;

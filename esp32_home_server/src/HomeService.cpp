@@ -1,7 +1,7 @@
 /**
  * @file HomeService.cpp
  * @brief 家庭智能服务实现文件
- * 
+ *
  * 实现完整的智能家居服务逻辑：
  * - 系统初始化与配置
  * - 传感器数据采集与发布
@@ -21,20 +21,23 @@
 namespace
 {
     // WiFi配置
-    const char *kStaSsid = "home-WiFi";       // WiFi名称
-    const char *kStaPassword = "";             // WiFi密码(空)
-    const char *kApSsid = "esp32-server";     // AP热点名称
-    const char *kApPassword = "lbl450981";    // AP热点密码
+    const char *kStaSsid = "home-WiFi";    // WiFi名称
+    const char *kStaPassword = "";         // WiFi密码(空)
+    const char *kApSsid = "esp32-server";  // AP热点名称
+    const char *kApPassword = "lbl450981"; // AP热点密码
 
     // MQTT配置
-    const char *kMqttHost = "example.mqtt.server";  // MQTT服务器地址
-    const uint16_t kMqttPort = 1883;               // MQTT端口
-    const char *kMqttClientId = "esp32-home-server";  // 客户端ID
+    const char *kMqttHost = "example.mqtt.server";   // MQTT服务器地址
+    const uint16_t kMqttPort = 1883;                 // MQTT端口
+    const char *kMqttClientId = "esp32-home-server"; // 客户端ID
 
     // MQTT主题
-    const char *kSensorTopic = "esp32/home/sensors";  // 传感器数据主题
-    const char *kStatusTopic = "esp32/home/status";   // 状态主题
-    const char *kAlarmTopic = "esp32/home/alarm";     // 报警主题
+    const char *kSensorTopic = "esp32/home/sensors"; // 传感器数据主题
+    const char *kStatusTopic = "esp32/home/status";  // 状态主题
+    const char *kAlarmTopic = "esp32/home/alarm";    // 报警主题
+
+    // 红外桥接串口：ESP32 Serial2 <-> ESP8266 红外模块
+    HardwareSerial gIrBridgeSerial(2);
 } // namespace
 
 /**
@@ -46,7 +49,7 @@ HomeService::HomeService()
       fan_(pins::RELAY_FAN),
       curtain_(pins::SERVO_1, pins::SERVO_2),
       buzzer_(pins::BUZZER),
-      ir_(pins::IR_RX, pins::IR_TX),
+    ir_(pins::IR_BRIDGE_UART_RX, pins::IR_BRIDGE_UART_TX, pins::IR_BRIDGE_UART_BAUD),
       net_(kStaSsid, kStaPassword, kApSsid, kApPassword)
 {
     // 编译时间作为备用时间基准(无NTP时使用)
@@ -62,14 +65,18 @@ HomeService::HomeService()
  */
 void HomeService::begin()
 {
-    Serial.begin(115200);  // 启动串口
+    Serial.begin(115200); // 启动串口
+
+    // 初始化ESP32与ESP8266之间的桥接串口。
+    // 约定命令采用“单行JSON”格式，ESP8266按行解析并执行红外收发。
+    gIrBridgeSerial.begin(ir_.baudRate(), SERIAL_8N1, pins::IR_BRIDGE_UART_RX, pins::IR_BRIDGE_UART_TX);
+    ir_.begin(gIrBridgeSerial);
 
     // 初始化所有传感器和执行器
     sensors_.begin();
     fan_.begin();
     curtain_.begin();
     buzzer_.begin();
-    ir_.begin();
 
     // 初始化网络连接
     net_.begin();
@@ -92,7 +99,7 @@ void HomeService::begin()
     // 如果已连接互联网，配置NTP时间同步
     if (net_.isInternetConnected())
     {
-        configTime(8 * 3600, 0, "pool.ntp.org", "ntp.aliyun.com");  // UTC+8
+        configTime(8 * 3600, 0, "pool.ntp.org", "ntp.aliyun.com"); // UTC+8
         ntpConfigured_ = true;
     }
 
@@ -105,21 +112,18 @@ void HomeService::begin()
  */
 void HomeService::loop()
 {
-    net_.loop();                    // 处理网络请求
-    handleSensorAndPublish();       // 采集并发布传感器数据
-    handleAutomation();             // 执行自动化任务
-    handleAlerts();                 // 检查并处理报警
+    net_.loop();              // 处理网络请求
+    handleSensorAndPublish(); // 采集并发布传感器数据
+    handleAutomation();       // 执行自动化任务
+    handleAlerts();           // 检查并处理报警
 
-    // 检查红外信号接收
+    // 读取ESP8266上行消息并转发到状态主题，便于调试桥接链路。
     const IRDecodedSignal signal = ir_.receive();
     if (signal.available)
     {
         DynamicJsonDocument doc(256);
-        doc["type"] = "ir_receive";
-        doc["protocol"] = signal.protocol;
-        doc["address"] = signal.address;
-        doc["command"] = signal.command;
-        doc["raw"] = signal.rawData;
+        doc["type"] = "ir_bridge_rx";
+        doc["message"] = signal.message;
         String payload;
         serializeJson(doc, payload);
         publishStatus(kStatusTopic, "ir", payload);
@@ -290,13 +294,53 @@ void HomeService::processControlCommand(const String &jsonText)
     if (device == "ir")
     {
         const String action = doc["action"] | "";
+
+        // 兼容旧命令：NEC协议发送
         if (action == "send_nec")
         {
             const uint16_t address = doc["address"] | 0;
             const uint8_t command = doc["command"] | 0;
             const uint8_t repeats = doc["repeats"] | 0;
-            ir_.sendNEC(address, command, repeats);
+            const bool ok = ir_.sendNEC(address, command, repeats);
+            publishStatus(kStatusTopic, ok ? "ir_command" : "error", ok ? "ir_nec_sent" : "ir_nec_send_failed");
+            return;
         }
+
+        // 通用协议命令，便于后续新增协议
+        if (action == "send")
+        {
+            const String protocol = doc["protocol"] | "NEC";
+            const uint32_t address = doc["address"] | 0;
+            const uint32_t command = doc["command"] | 0;
+            const uint8_t repeats = doc["repeats"] | 0;
+            const bool ok = ir_.sendProtocolCommand(protocol, address, command, repeats);
+            publishStatus(kStatusTopic, ok ? "ir_command" : "error", ok ? "ir_protocol_sent" : "ir_protocol_send_failed");
+            return;
+        }
+
+        // 直接下发完整JSON命令，提供最高扩展性
+        if (action == "send_json")
+        {
+            const String commandJson = doc["commandJson"] | "";
+            const bool ok = commandJson.length() > 0 && ir_.sendJsonCommand(commandJson);
+            publishStatus(kStatusTopic, ok ? "ir_command" : "error", ok ? "ir_json_sent" : "ir_json_send_failed");
+            return;
+        }
+
+        // 扩展动作命令，args由ESP8266端定义语义
+        if (action.length() > 0)
+        {
+            String args = "{}";
+            if (doc.containsKey("args"))
+            {
+                serializeJson(doc["args"], args);
+            }
+            const bool ok = ir_.sendActionCommand(action, args);
+            publishStatus(kStatusTopic, ok ? "ir_command" : "error", ok ? "ir_action_sent" : "ir_action_send_failed");
+            return;
+        }
+
+        publishStatus(kStatusTopic, "error", "ir_action_missing");
         return;
     }
 
@@ -371,7 +415,7 @@ void HomeService::handleAutomation()
     // 早上7点自动开窗帘
     if (hour == 7 && minute == 0 && lastOpenDay_ != dayIndex)
     {
-        curtain_.setPresetLevel(4);  // 全开
+        curtain_.setPresetLevel(4); // 全开
         lastOpenDay_ = dayIndex;
         publishStatus(kStatusTopic, "automation", "curtain_open_07_00");
     }
@@ -379,7 +423,7 @@ void HomeService::handleAutomation()
     // 晚上10点自动关窗帘
     if (hour == 22 && minute == 0 && lastCloseDay_ != dayIndex)
     {
-        curtain_.setPresetLevel(0);  // 全关
+        curtain_.setPresetLevel(0); // 全关
         lastCloseDay_ = dayIndex;
         publishStatus(kStatusTopic, "automation", "curtain_close_22_00");
     }
@@ -421,7 +465,7 @@ void HomeService::handleAlerts()
         if (flameDuration >= 45000 && millis() - lastFlamePatternMs_ >= 2500)
         {
             lastFlamePatternMs_ = millis();
-            buzzer_.patternShortShortLong();  // 播放警报模式
+            buzzer_.patternShortShortLong(); // 播放警报模式
         }
 
         // 火焰持续5分钟后上报火警服务
@@ -497,7 +541,7 @@ int HomeService::currentHour() const
     if (ntpConfigured_)
     {
         time_t now = time(nullptr);
-        if (now > 100000)  // NTP时间有效
+        if (now > 100000) // NTP时间有效
         {
             struct tm timeinfo;
             localtime_r(&now, &timeinfo);

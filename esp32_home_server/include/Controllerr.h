@@ -6,7 +6,7 @@
  * - 风扇继电器控制器 (RelayFanController)
  * - 双窗帘舵机控制器 (DualCurtainController)
  * - 蜂鸣器控制器 (BuzzerController)
- * - 红外遥控控制器 (IRController)
+ * - 红外桥接控制器 (IRController)
  */
 
 #ifndef CONTROLLERR_H
@@ -161,62 +161,92 @@ private:
 };
 
 /**
- * @brief 红外解码信号结构体
- * 存储接收到的红外遥控信号数据
+ * @brief 红外模块上行消息结构体
+ * @details ESP32可读取ESP8266返回的状态或调试信息
  */
 struct IRDecodedSignal
 {
-    bool available = false;      ///< 信号是否有效
-    String protocol;             ///< 红外协议名称 (NEC/SONY/SAMSUNG等)
-    uint16_t address = 0;        ///< 设备地址
-    uint16_t command = 0;       ///< 命令码
-    uint32_t rawData = 0;        ///< 原始数据
+    bool available = false; ///< 消息是否有效
+    String message;         ///< ESP8266返回的完整消息行
 };
 
 /**
- * @brief 红外遥控控制器类
- * @details 支持红外信号的接收和发送，可控制空调、电视等红外设备
+ * @brief 红外桥接控制器类
+ * @details
+ * ESP32不直接驱动红外收发器，而是通过UART向ESP8266下发命令。
+ * 该类提供协议专用接口和通用扩展接口，便于后续新增协议或自定义动作。
  */
 class IRController
 {
 public:
     /**
      * @brief 构造函数
-     * @param rxPin 红外接收模块引脚
-     * @param txPin 红外发射模块引脚
+    * @param rxPin ESP32 UART接收引脚(接ESP8266 TX)
+    * @param txPin ESP32 UART发送引脚(接ESP8266 RX)
+    * @param baudRate 串口波特率
      */
-    IRController(uint8_t rxPin, uint8_t txPin);
+    IRController(uint8_t rxPin, uint8_t txPin, uint32_t baudRate);
 
     /**
-     * @brief 初始化红外模块
-     * 启动红外接收和发送功能
+    * @brief 初始化红外桥接串口
+    * @param serial 外部串口对象(建议HardwareSerial(2))
      */
-    void begin();
+    void begin(Stream &serial);
 
     /**
-     * @brief 发送NEC协议红外信号
+    * @brief 发送NEC协议红外信号(桥接到ESP8266)
      * @param address 设备地址
      * @param command 命令码
      * @param repeats 重复发送次数
      */
-    void sendNEC(uint16_t address, uint8_t command, uint8_t repeats = 0) const;
+    bool sendNEC(uint16_t address, uint8_t command, uint8_t repeats = 0);
 
     /**
-     * @brief 接收红外信号
-     * @return IRDecodedSignal 解码后的红外信号数据
+    * @brief 发送通用协议命令
+    * @param protocol 协议名，例如NEC/SONY/SAMSUNG
+    * @param address 地址
+    * @param command 命令
+    * @param repeats 重复次数
+    */
+    bool sendProtocolCommand(const String &protocol, uint32_t address, uint32_t command, uint8_t repeats = 0);
+
+    /**
+    * @brief 发送扩展动作命令
+    * @param action 动作名，例如learn、stop、raw_send等
+    * @param args JSON字符串或自定义参数字符串
+    */
+    bool sendActionCommand(const String &action, const String &args = "{}");
+
+    /**
+    * @brief 直接发送完整JSON命令(最高扩展性)
+    * @param jsonCommand 完整JSON字符串
+    */
+    bool sendJsonCommand(const String &jsonCommand);
+
+    /**
+     * @brief 读取ESP8266返回的一行消息
+     * @return IRDecodedSignal 上行消息
      */
     IRDecodedSignal receive();
 
-private:
     /**
-     * @brief 将协议编号转换为字符串
-     * @param protocol 协议编号
-     * @return String 协议名称
+     * @brief 获取最近一次下发命令内容
      */
-    String protocolToString(uint8_t protocol) const;
+    String lastCommand() const;
 
-    uint8_t rxPin_;  ///< 红外接收引脚
-    uint8_t txPin_;  ///< 红外发射引脚
+    /**
+     * @brief 获取配置的桥接串口波特率
+     */
+    uint32_t baudRate() const;
+
+private:
+    bool sendLine(const String &line);
+
+    Stream *serial_ = nullptr; ///< 指向ESP8266桥接串口
+    uint8_t rxPin_;            ///< ESP32 UART RX引脚
+    uint8_t txPin_;            ///< ESP32 UART TX引脚
+    uint32_t baudRate_;        ///< 串口波特率
+    String lastCommand_;       ///< 最近一次下发命令(用于调试)
 };
 
 #endif
