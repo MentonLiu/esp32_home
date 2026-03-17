@@ -1,11 +1,4 @@
-[platformio]
-default_envs = "esp32dev"
-
-[env:esp32dev]
-platform = espressif32
-board = esp32dev
-framework = arduino
-
 [wokwi]
 version = "1.0.0"
-project_id = "esp32_home_server"
+firmware = ".pio/build/esp32dev/firmware.bin"
+elf = ".pio/build/esp32dev/firmware.elf"
