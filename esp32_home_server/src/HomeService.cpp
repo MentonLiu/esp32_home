@@ -121,7 +121,7 @@ void HomeService::loop()
     const IRDecodedSignal signal = ir_.receive();
     if (signal.available)
     {
-        DynamicJsonDocument doc(256);
+        JsonDocument doc;
         doc["type"] = "ir_bridge_rx";
         doc["message"] = signal.message;
         String payload;
@@ -235,7 +235,7 @@ fetchStatus();
  */
 void HomeService::processControlCommand(const String &jsonText)
 {
-    DynamicJsonDocument doc(512);
+    JsonDocument doc;
     const DeserializationError err = deserializeJson(doc, jsonText);
     if (err)
     {
@@ -267,7 +267,7 @@ void HomeService::processControlCommand(const String &jsonText)
         }
 
         // 支持自定义转速
-        if (doc.containsKey("speedPercent"))
+        if (!doc["speedPercent"].isNull())
         {
             fan_.setSpeedPercent(doc["speedPercent"].as<uint8_t>());
         }
@@ -278,12 +278,12 @@ void HomeService::processControlCommand(const String &jsonText)
     if (device == "curtain")
     {
         // 自定义角度
-        if (doc.containsKey("angle"))
+        if (!doc["angle"].isNull())
         {
             curtain_.setAngle(doc["angle"].as<uint8_t>());
         }
         // 预设等级
-        if (doc.containsKey("preset"))
+        if (!doc["preset"].isNull())
         {
             curtain_.setPresetLevel(doc["preset"].as<uint8_t>());
         }
@@ -320,7 +320,7 @@ void HomeService::processControlCommand(const String &jsonText)
         if (action.length() > 0)
         {
             String args = "{}";
-            if (doc.containsKey("args"))
+            if (!doc["args"].isNull())
             {
                 serializeJson(doc["args"], args);
             }
@@ -357,7 +357,7 @@ void HomeService::handleSensorAndPublish()
 
     // 构建传感器数据JSON
     const SensorSnapshot &s = sensors_.snapshot();
-    DynamicJsonDocument doc(512);
+    JsonDocument doc;
     doc["sensorType"] = "home_snapshot";
     doc["timestamp"] = s.timestamp;
     doc["temperatureC"] = s.temperatureC;
@@ -477,7 +477,7 @@ void HomeService::handleAlerts()
  */
 void HomeService::publishStatus(const char *topic, const String &type, const String &message) const
 {
-    DynamicJsonDocument doc(512);
+    JsonDocument doc;
     doc["type"] = type;
     doc["message"] = message;
     doc["timestamp"] = millis();
@@ -495,7 +495,7 @@ String HomeService::buildStatusJson(bool includeMeta) const
 {
     const SensorSnapshot &s = sensors_.snapshot();
 
-    DynamicJsonDocument doc(768);
+    JsonDocument doc;
     // 包含网络信息
     if (includeMeta)
     {
