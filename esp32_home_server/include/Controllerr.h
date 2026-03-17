@@ -1,7 +1,7 @@
 /**
  * @file Controllerr.h
  * @brief 执行器控制器头文件
- * 
+ *
  * 定义所有执行器设备的控制类：
  * - 风扇继电器控制器 (RelayFanController)
  * - 双窗帘舵机控制器 (DualCurtainController)
@@ -71,10 +71,10 @@ public:
     uint8_t speedPercent() const;
 
 private:
-    uint8_t pin_;              ///< 继电器控制引脚
-    uint8_t speedPercent_ = 0; ///< 当前转速百分比
+    uint8_t pin_;                 ///< 继电器控制引脚
+    uint8_t speedPercent_ = 0;    ///< 当前转速百分比
     FanMode mode_ = FanMode::Off; ///< 当前运行模式
-    uint8_t pwmChannel_ = 0;   ///< PWM通道号
+    uint8_t pwmChannel_ = 0;      ///< PWM通道号
 };
 
 /**
@@ -156,8 +156,8 @@ public:
     void patternShortShortLong();
 
 private:
-    uint8_t pin_;             ///< 蜂鸣器引脚
-    uint8_t pwmChannel_ = 6;  ///< PWM通道号
+    uint8_t pin_;            ///< 蜂鸣器引脚
+    uint8_t pwmChannel_ = 6; ///< PWM通道号
 };
 
 /**
@@ -174,53 +174,45 @@ struct IRDecodedSignal
  * @brief 红外桥接控制器类
  * @details
  * ESP32不直接驱动红外收发器，而是通过UART向ESP8266下发命令。
- * 该类提供协议专用接口和通用扩展接口，便于后续新增协议或自定义动作。
+ * 该类仅保留桥接命令接口，协议细节由ESP8266端实现。
  */
 class IRController
 {
 public:
     /**
      * @brief 构造函数
-    * @param rxPin ESP32 UART接收引脚(接ESP8266 TX)
-    * @param txPin ESP32 UART发送引脚(接ESP8266 RX)
-    * @param baudRate 串口波特率
+     * @param rxPin ESP32 UART接收引脚(接ESP8266 TX)
+     * @param txPin ESP32 UART发送引脚(接ESP8266 RX)
+     * @param baudRate 串口波特率
      */
     IRController(uint8_t rxPin, uint8_t txPin, uint32_t baudRate);
 
     /**
-    * @brief 初始化红外桥接串口
-    * @param serial 外部串口对象(建议HardwareSerial(2))
+     * @brief 初始化红外桥接串口
+     * @param serial 外部串口对象(建议HardwareSerial(2))
      */
     void begin(Stream &serial);
 
     /**
-    * @brief 发送NEC协议红外信号(桥接到ESP8266)
-     * @param address 设备地址
-     * @param command 命令码
-     * @param repeats 重复发送次数
+     * @brief 发送通用协议命令
+     * @param protocol 协议名，例如NEC/SONY/SAMSUNG
+     * @param address 地址
+     * @param command 命令
+     * @param repeats 重复次数
      */
-    bool sendNEC(uint16_t address, uint8_t command, uint8_t repeats = 0);
-
-    /**
-    * @brief 发送通用协议命令
-    * @param protocol 协议名，例如NEC/SONY/SAMSUNG
-    * @param address 地址
-    * @param command 命令
-    * @param repeats 重复次数
-    */
     bool sendProtocolCommand(const String &protocol, uint32_t address, uint32_t command, uint8_t repeats = 0);
 
     /**
-    * @brief 发送扩展动作命令
-    * @param action 动作名，例如learn、stop、raw_send等
-    * @param args JSON字符串或自定义参数字符串
-    */
+     * @brief 发送扩展动作命令
+     * @param action 动作名，例如learn、stop、raw_send等
+     * @param args JSON字符串或自定义参数字符串
+     */
     bool sendActionCommand(const String &action, const String &args = "{}");
 
     /**
-    * @brief 直接发送完整JSON命令(最高扩展性)
-    * @param jsonCommand 完整JSON字符串
-    */
+     * @brief 直接发送完整JSON命令(最高扩展性)
+     * @param jsonCommand 完整JSON字符串
+     */
     bool sendJsonCommand(const String &jsonCommand);
 
     /**

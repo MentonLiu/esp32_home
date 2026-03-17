@@ -1,7 +1,7 @@
 /**
  * @file pins.h
  * @brief 引脚定义文件
- * 
+ *
  * 定义ESP32开发板所有使用的GPIO引脚，包括传感器、执行器和通信模块
  * 采用namespace封装，避免全局变量污染
  */
@@ -68,12 +68,6 @@ namespace pins
     static constexpr uint8_t IR_BRIDGE_UART_TX = 17;
     static constexpr uint32_t IR_BRIDGE_UART_BAUD = 115200;
 
-    /**
-     * @brief 兼容保留字段
-     * @details 原本ESP32直连红外收发器时使用，现阶段默认不启用。
-     */
-    static constexpr uint8_t IR_RX = 5;
-    static constexpr uint8_t IR_TX = 27;
 } // namespace pins
 
 #endif

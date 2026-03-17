@@ -49,7 +49,7 @@ HomeService::HomeService()
       fan_(pins::RELAY_FAN),
       curtain_(pins::SERVO_1, pins::SERVO_2),
       buzzer_(pins::BUZZER),
-    ir_(pins::IR_BRIDGE_UART_RX, pins::IR_BRIDGE_UART_TX, pins::IR_BRIDGE_UART_BAUD),
+      ir_(pins::IR_BRIDGE_UART_RX, pins::IR_BRIDGE_UART_TX, pins::IR_BRIDGE_UART_BAUD),
       net_(kStaSsid, kStaPassword, kApSsid, kApPassword)
 {
     // 编译时间作为备用时间基准(无NTP时使用)
@@ -294,17 +294,6 @@ void HomeService::processControlCommand(const String &jsonText)
     if (device == "ir")
     {
         const String action = doc["action"] | "";
-
-        // 兼容旧命令：NEC协议发送
-        if (action == "send_nec")
-        {
-            const uint16_t address = doc["address"] | 0;
-            const uint8_t command = doc["command"] | 0;
-            const uint8_t repeats = doc["repeats"] | 0;
-            const bool ok = ir_.sendNEC(address, command, repeats);
-            publishStatus(kStatusTopic, ok ? "ir_command" : "error", ok ? "ir_nec_sent" : "ir_nec_send_failed");
-            return;
-        }
 
         // 通用协议命令，便于后续新增协议
         if (action == "send")

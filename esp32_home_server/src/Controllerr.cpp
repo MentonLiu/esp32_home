@@ -1,7 +1,7 @@
 /**
  * @file Controllerr.cpp
  * @brief 执行器控制器实现文件
- * 
+ *
  * 实现所有执行器设备的控制逻辑：
  * - 风扇PWM调速
  * - 双舵机窗帘控制
@@ -21,10 +21,10 @@ RelayFanController::RelayFanController(uint8_t pin) : pin_(pin) {}
  */
 void RelayFanController::begin()
 {
-    pinMode(pin_, OUTPUT);                  // 设置引脚为输出模式
-    ledcSetup(pwmChannel_, 25000, 8);       // 配置PWM: 25kHz频率, 8位分辨率(0-255)
-    ledcAttachPin(pin_, pwmChannel_);       // 将引脚绑定到PWM通道
-    setMode(FanMode::Off);                  // 初始化为关闭状态
+    pinMode(pin_, OUTPUT);            // 设置引脚为输出模式
+    ledcSetup(pwmChannel_, 25000, 8); // 配置PWM: 25kHz频率, 8位分辨率(0-255)
+    ledcAttachPin(pin_, pwmChannel_); // 将引脚绑定到PWM通道
+    setMode(FanMode::Off);            // 初始化为关闭状态
 }
 
 /**
@@ -37,16 +37,16 @@ void RelayFanController::setMode(FanMode mode)
     switch (mode_)
     {
     case FanMode::Off:
-        setSpeedPercent(0);   // 关闭风扇
+        setSpeedPercent(0); // 关闭风扇
         break;
     case FanMode::Low:
-        setSpeedPercent(30);   // 低速: 30%
+        setSpeedPercent(30); // 低速: 30%
         break;
     case FanMode::Medium:
-        setSpeedPercent(65);   // 中速: 65%
+        setSpeedPercent(65); // 中速: 65%
         break;
     case FanMode::High:
-        setSpeedPercent(100);  // 高速: 100%
+        setSpeedPercent(100); // 高速: 100%
         break;
     }
 }
@@ -58,9 +58,9 @@ void RelayFanController::setMode(FanMode mode)
  */
 void RelayFanController::setSpeedPercent(uint8_t speedPercent)
 {
-    speedPercent_ = constrain(speedPercent, 0, 100);  // 限制在0-100范围内
-    const uint8_t duty = map(speedPercent_, 0, 100, 0, 255);  // 映射到PWM范围
-    ledcWrite(pwmChannel_, duty);  // 输出PWM信号
+    speedPercent_ = constrain(speedPercent, 0, 100);         // 限制在0-100范围内
+    const uint8_t duty = map(speedPercent_, 0, 100, 0, 255); // 映射到PWM范围
+    ledcWrite(pwmChannel_, duty);                            // 输出PWM信号
 
     // 转速为0时更新模式为关闭
     if (speedPercent_ == 0)
@@ -73,7 +73,6 @@ FanMode RelayFanController::mode() const { return mode_; }
 
 uint8_t RelayFanController::speedPercent() const { return speedPercent_; }
 
-
 // ============ DualCurtainController 实现 ============
 
 DualCurtainController::DualCurtainController(uint8_t pinA, uint8_t pinB) : pinA_(pinA), pinB_(pinB) {}
@@ -84,12 +83,12 @@ DualCurtainController::DualCurtainController(uint8_t pinA, uint8_t pinB) : pinA_
  */
 void DualCurtainController::begin()
 {
-    servoA_.setPeriodHertz(50);  // 舵机标准50Hz
+    servoA_.setPeriodHertz(50); // 舵机标准50Hz
     servoB_.setPeriodHertz(50);
     // 绑定引脚，设置脉宽范围500-2400us对应0-180度
     servoA_.attach(pinA_, 500, 2400);
     servoB_.attach(pinB_, 500, 2400);
-    setAngle(0);  // 初始化为关闭状态
+    setAngle(0); // 初始化为关闭状态
 }
 
 /**
@@ -99,9 +98,9 @@ void DualCurtainController::begin()
  */
 void DualCurtainController::setAngle(uint8_t angle)
 {
-    currentAngle_ = constrain(angle, 0, 180);  // 限制角度范围
-    servoA_.write(currentAngle_);               // 左侧舵机正转
-    servoB_.write(180 - currentAngle_);        // 右侧舵机反转，实现对称开合
+    currentAngle_ = constrain(angle, 0, 180); // 限制角度范围
+    servoA_.write(currentAngle_);             // 左侧舵机正转
+    servoB_.write(180 - currentAngle_);       // 右侧舵机反转，实现对称开合
 }
 
 /**
@@ -110,13 +109,12 @@ void DualCurtainController::setAngle(uint8_t angle)
  */
 void DualCurtainController::setPresetLevel(uint8_t level)
 {
-    static const uint8_t presets[] = {0, 45, 90, 135, 180};  // 预设角度表
-    level = constrain(level, 0, 4);  // 限制在0-4范围内
-    setAngle(presets[level]);        // 设置对应角度
+    static const uint8_t presets[] = {0, 45, 90, 135, 180}; // 预设角度表
+    level = constrain(level, 0, 4);                         // 限制在0-4范围内
+    setAngle(presets[level]);                               // 设置对应角度
 }
 
 uint8_t DualCurtainController::angle() const { return currentAngle_; }
-
 
 // ============ BuzzerController 实现 ============
 
@@ -128,9 +126,9 @@ BuzzerController::BuzzerController(uint8_t pin) : pin_(pin) {}
  */
 void BuzzerController::begin()
 {
-    ledcSetup(pwmChannel_, 2000, 8);   // 配置PWM: 2kHz频率, 8位分辨率
-    ledcAttachPin(pin_, pwmChannel_);  // 绑定引脚到PWM通道
-    ledcWriteTone(pwmChannel_, 0);      // 初始静音
+    ledcSetup(pwmChannel_, 2000, 8);  // 配置PWM: 2kHz频率, 8位分辨率
+    ledcAttachPin(pin_, pwmChannel_); // 绑定引脚到PWM通道
+    ledcWriteTone(pwmChannel_, 0);    // 初始静音
 }
 
 /**
@@ -140,9 +138,9 @@ void BuzzerController::begin()
  */
 void BuzzerController::beep(uint16_t frequency, uint16_t durationMs)
 {
-    ledcWriteTone(pwmChannel_, frequency);  // 设置频率并开始发声
-    delay(durationMs);                      // 持续指定时间
-    ledcWriteTone(pwmChannel_, 0);          // 停止发声
+    ledcWriteTone(pwmChannel_, frequency); // 设置频率并开始发声
+    delay(durationMs);                     // 持续指定时间
+    ledcWriteTone(pwmChannel_, 0);         // 停止发声
 }
 
 /**
@@ -151,13 +149,12 @@ void BuzzerController::beep(uint16_t frequency, uint16_t durationMs)
  */
 void BuzzerController::patternShortShortLong()
 {
-    beep(2400, 120);   // 第一声短促(120ms, 2.4kHz)
-    delay(90);         // 间隔90ms
-    beep(2400, 120);   // 第二声短促
-    delay(90);         // 间隔90ms
-    beep(1700, 450);   // 一声长警报(450ms, 1.7kHz)
+    beep(2400, 120); // 第一声短促(120ms, 2.4kHz)
+    delay(90);       // 间隔90ms
+    beep(2400, 120); // 第二声短促
+    delay(90);       // 间隔90ms
+    beep(1700, 450); // 一声长警报(450ms, 1.7kHz)
 }
-
 
 // ============ IRController 实现 ============
 
@@ -172,15 +169,6 @@ IRController::IRController(uint8_t rxPin, uint8_t txPin, uint32_t baudRate)
 void IRController::begin(Stream &serial)
 {
     serial_ = &serial;
-}
-
-/**
- * @brief 发送NEC协议红外命令
- * @details 发送给ESP8266，由ESP8266执行实际红外发射
- */
-bool IRController::sendNEC(uint16_t address, uint8_t command, uint8_t repeats)
-{
-    return sendProtocolCommand("NEC", address, command, repeats);
 }
 
 /**
