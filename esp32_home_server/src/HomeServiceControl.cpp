@@ -6,7 +6,6 @@
 #include "HomeService.h"
 
 #include <ArduinoJson.h>
-#include <LittleFS.h>
 
 namespace
 {
@@ -18,15 +17,6 @@ void HomeService::setupWebRoutes()
 {
     net_.webServer().on("/", HTTP_GET, [this]()
                         {
-        if (webFsReady_ && LittleFS.exists("/index.html")) {
-            File f = LittleFS.open("/index.html", "r");
-            if (f) {
-                net_.webServer().streamFile(f, "text/html");
-                f.close();
-                return;
-            }
-        }
-
     const char html[] = R"HTML(
 <!doctype html>
 <html>

@@ -135,7 +135,6 @@ private:
 
     uint32_t bootBaseSeconds_ = 0;  ///< 启动时间基准(无NTP时使用)
     bool ntpConfigured_ = false;    ///< NTP是否已配置
-    bool webFsReady_ = false;       ///< Web文件系统是否已挂载
     RTC_DS3231 rtc_;                ///< DS3231 RTC时钟芯片
     bool rtcAvailable_ = false;     ///< RTC模块是否可用
     bool rtcSyncedFromNtp_ = false; ///< RTC是否已由NTP校时

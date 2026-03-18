@@ -1,7 +1,7 @@
-# ESP32 Home Server 使用说明书
+# ESP32-S3 Home Server 使用说明书
 
 ## 1. 项目简介
-本项目基于 ESP32 + PlatformIO（Arduino 框架），实现家庭环境监测与设备控制的服务端。
+本项目基于 ESP32-S3 + PlatformIO（Arduino 框架），实现家庭环境监测与设备控制的服务端。
 
 核心能力：
 - 传感器采集：温湿度、光照、烟雾（MQ2）、火焰状态
@@ -23,14 +23,14 @@
 
 主要映射：
 - DHT11 数据脚: GPIO13
-- 光照传感器: GPIO34
-- MQ2 烟雾传感器: GPIO36
-- 火焰传感器占位: GPIO39
+- 光照传感器: GPIO4
+- MQ2 烟雾传感器: GPIO5
+- 火焰传感器占位: GPIO6
 - 继电器风扇: GPIO18
 - 舵机: GPIO16 / GPIO17（窗帘主控）
 - 蜂鸣器: GPIO12
-- 红外桥接串口 RX: GPIO19（接 ESP8266 TX）
-- 红外桥接串口 TX: GPIO21（接 ESP8266 RX）
+- 红外桥接串口 RX: GPIO15（接 ESP8266 TX）
+- 红外桥接串口 TX: GPIO14（接 ESP8266 RX）
 - 红外桥接波特率: 115200
 
 ### 全设备接线表
@@ -38,23 +38,23 @@
 | 设备/模块              | 模块引脚 | ESP32 引脚  | 说明                     |
 | ---------------------- | -------- | ----------- | ------------------------ |
 | DHT11 温湿度           | DATA     | GPIO13      | 单总线数据               |
-| 光照传感器（LDR 模块） | AO       | GPIO34      | 模拟量输入               |
-| MQ2 烟雾传感器         | AO       | GPIO36      | 模拟量输入               |
-| 火焰传感器（占位）     | AO/OUT   | GPIO39      | 当前作为火焰强度占位输入 |
+| 光照传感器（LDR 模块） | AO       | GPIO4       | 模拟量输入               |
+| MQ2 烟雾传感器         | AO       | GPIO5       | 模拟量输入               |
+| 火焰传感器（占位）     | AO/OUT   | GPIO6       | 当前作为火焰强度占位输入 |
 | 风扇继电器模块         | IN       | GPIO18      | 风扇控制信号             |
 | 舵机1（窗帘）          | PWM      | GPIO16      | 窗帘舵机控制             |
 | 舵机2（窗帘）          | PWM      | GPIO17      | 窗帘舵机控制             |
 | 蜂鸣器                 | SIG      | GPIO12      | 报警音输出               |
-| ESP8266 红外桥接       | RX       | GPIO21(TX2) | 与 ESP32 TX2 交叉连接    |
-| ESP8266 红外桥接       | TX       | GPIO19(RX2) | 与 ESP32 RX2 交叉连接    |
-| RTC（DS3231）          | SDA      | GPIO32      | I2C 数据线               |
-| RTC（DS3231）          | SCL      | GPIO33      | I2C 时钟线               |
+| ESP8266 红外桥接       | RX       | GPIO14(TX2) | 与 ESP32-S3 TX2 交叉连接 |
+| ESP8266 红外桥接       | TX       | GPIO15(RX2) | 与 ESP32-S3 RX2 交叉连接 |
+| RTC（DS3231）          | SDA      | GPIO8       | I2C 数据线               |
+| RTC（DS3231）          | SCL      | GPIO9       | I2C 时钟线               |
 
 说明：
 1. 若 DS3231 模块未集成上拉电阻，建议在 SDA/SCL 各增加 4.7k 上拉到 3V3。
 2. 舵机与继电器建议使用独立稳定电源，避免瞬时电流导致 ESP32 复位。
 
-注意：dragram.json 中没有独立火焰模块，当前使用 GPIO39 作为火焰模拟输入占位。
+注意：dragram.json 中没有独立火焰模块，当前使用 GPIO6 作为火焰模拟输入占位。
 
 ## 4. 软件依赖
 已在 platformio.ini 中配置：
@@ -69,7 +69,7 @@
 ## 5. 环境准备
 1. 安装 VS Code 与 PlatformIO 插件。
 2. 打开项目根目录。
-3. 连接 ESP32 开发板（esp32dev）。
+3. 连接 ESP32-S3 开发板（esp32-s3-devkitc-1）。
 
 ## 6. 关键配置
 请根据实际环境修改 src/HomeService.cpp 中常量：
@@ -91,13 +91,11 @@
 ```bash
 pio run
 pio run -t upload
-pio run -t uploadfs
 pio device monitor -b 115200
 ```
 
 说明：
-1. `web/` 目录作为 LittleFS 文件系统内容，会通过 `uploadfs` 烧录到设备。
-2. 运行时首页优先读取 `/index.html`（即 `web/index.html`），未挂载成功时回退到固件内置页面。
+1. 运行时首页使用固件内置页面，不依赖额外文件系统烧录。
 
 ## 8. 启动行为说明
 系统启动后流程：
@@ -212,7 +210,7 @@ pio device monitor -b 115200
 - 确认已连接 ESP32 AP，或确认设备与电脑在同一局域网。
 
 4. 红外功能异常
-- 检查ESP32与ESP8266 UART接线（GPIO16/17交叉连接）和波特率是否一致。
+- 检查ESP32-S3与ESP8266 UART接线（GPIO14/15交叉连接）和波特率是否一致。
 - 检查ESP8266固件是否支持对应 action/protocol。
 
 ## 14. 后续建议

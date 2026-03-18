@@ -9,7 +9,6 @@
 #include "HomeService.h"
 
 #include <ArduinoJson.h>
-#include <LittleFS.h>
 #include <time.h>
 #include <Wire.h>
 
@@ -60,13 +59,6 @@ HomeService::HomeService()
 void HomeService::begin()
 {
     Serial.begin(115200); // 启动串口
-
-    // 挂载Web文件系统，优先使用web目录中的页面资源。
-    webFsReady_ = LittleFS.begin(false);
-    if (!webFsReady_)
-    {
-        Serial.println("LittleFS mount failed, fallback to built-in web page");
-    }
 
     // 初始化RTC（DS3231）I2C总线，用于无网络环境下维持稳定时钟。
     Wire.begin(pins::RTC_I2C_SDA, pins::RTC_I2C_SCL);
