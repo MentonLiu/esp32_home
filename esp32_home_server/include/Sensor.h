@@ -1,12 +1,12 @@
 /**
  * @file Sensor.h
  * @brief 传感器头文件
- * 
+ *
  * 定义所有传感器相关的类：
  * - DHTSensor: DHT11温湿度传感器
  * - AnalogPercentSensor: 模拟量传感器(光敏、烟雾、火焰)
  * - SensorHub: 传感器集线器，统一管理所有传感器
- * 
+ *
  * 传感器数据通过SensorSnapshot结构体封装
  */
 
@@ -22,15 +22,15 @@
  */
 struct SensorSnapshot
 {
-    float temperatureC = 0.0F;      ///< 温度 (摄氏度)
-    float humidityPercent = 0.0F;   ///< 湿度 (百分比)
-    uint8_t lightPercent = 0;       ///< 光照强度 (百分比)
-    uint8_t mq2Percent = 0;        ///< 烟雾浓度 (百分比)
+    float temperatureC = 0.0F;        ///< 温度 (摄氏度)
+    float humidityPercent = 0.0F;     ///< 湿度 (百分比)
+    uint8_t lightPercent = 0;         ///< 光照强度 (百分比)
+    uint8_t mq2Percent = 0;           ///< 烟雾浓度 (百分比)
     const char *smokeLevel = "green"; ///< 烟雾等级 (green/blue/yellow/red)
-    bool flameDetected = false;    ///< 是否检测到火焰
-    bool hasError = false;         ///< 是否有错误
-    String errorMessage;          ///< 错误信息
-    unsigned long timestamp = 0;  ///< 采样时间戳
+    bool flameDetected = false;       ///< 是否检测到火焰
+    bool hasError = false;            ///< 是否有错误
+    String errorMessage;              ///< 错误信息
+    unsigned long timestamp = 0;      ///< 采样时间戳
 };
 
 /**
@@ -61,7 +61,7 @@ public:
     bool read(float &temperatureC, float &humidityPercent, String &error);
 
 private:
-    DHT dht_;  ///< DHT库传感器对象
+    DHT dht_; ///< DHT库传感器对象
 };
 
 /**
@@ -90,8 +90,8 @@ public:
     uint8_t readPercent() const;
 
 private:
-    uint8_t pin_;      ///< 模拟输入引脚
-    bool inverted_;     ///< 是否翻转
+    uint8_t pin_;   ///< 模拟输入引脚
+    bool inverted_; ///< 是否翻转
 };
 
 /**
@@ -135,7 +135,7 @@ private:
      */
     const char *toSmokeLevel(uint8_t mq2Percent) const;
 
-    DHTSensor dht_;                 ///< 温湿度传感器
+    DHTSensor dht_;                  ///< 温湿度传感器
     AnalogPercentSensor ldr_;        ///< 光敏传感器(光强)
     AnalogPercentSensor mq2_;        ///< MQ2烟雾传感器
     AnalogPercentSensor flame_;      ///< 火焰传感器

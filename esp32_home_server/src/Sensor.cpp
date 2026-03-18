@@ -1,7 +1,7 @@
 /**
  * @file Sensor.cpp
  * @brief 传感器实现文件
- * 
+ *
  * 实现所有传感器类的具体功能
  */
 
@@ -21,8 +21,8 @@ void DHTSensor::begin() { dht_.begin(); }
  */
 bool DHTSensor::read(float &temperatureC, float &humidityPercent, String &error)
 {
-    temperatureC = dht_.readTemperature();   // 读取温度
-    humidityPercent = dht_.readHumidity();   // 读取湿度
+    temperatureC = dht_.readTemperature(); // 读取温度
+    humidityPercent = dht_.readHumidity(); // 读取湿度
 
     // 检查是否为有效数值(isnan表示读取失败)
     if (isnan(temperatureC) || isnan(humidityPercent))
@@ -33,7 +33,6 @@ bool DHTSensor::read(float &temperatureC, float &humidityPercent, String &error)
 
     return true;
 }
-
 
 // ============ AnalogPercentSensor 实现 ============
 
@@ -48,20 +47,19 @@ void AnalogPercentSensor::begin() const { pinMode(pin_, INPUT); }
  */
 uint8_t AnalogPercentSensor::readPercent() const
 {
-    const int raw = analogRead(pin_);  // 读取原始ADC值(0-4095)
+    const int raw = analogRead(pin_); // 读取原始ADC值(0-4095)
     // 映射到百分比(0-100)
     int percent = map(raw, 0, 4095, 0, 100);
-    
+
     // 翻转处理(光敏电阻等低电平表示高值)
     if (inverted_)
     {
         percent = 100 - percent;
     }
-    
-    percent = constrain(percent, 0, 100);  // 确保在有效范围内
+
+    percent = constrain(percent, 0, 100); // 确保在有效范围内
     return static_cast<uint8_t>(percent);
 }
-
 
 // ============ SensorHub 实现 ============
 
@@ -93,7 +91,7 @@ bool SensorHub::update()
         return false;
     }
 
-    lastSampleMs_ = millis();  // 更新时间戳
+    lastSampleMs_ = millis(); // 更新时间戳
     latest_.timestamp = millis();
     latest_.hasError = false;
     latest_.errorMessage = "";
@@ -107,9 +105,9 @@ bool SensorHub::update()
     }
 
     // 读取模拟传感器
-    latest_.lightPercent = ldr_.readPercent();   // 光照强度
-    latest_.mq2Percent = mq2_.readPercent();    // 烟雾浓度
-    latest_.smokeLevel = toSmokeLevel(latest_.mq2Percent);  // 转换为烟雾等级
+    latest_.lightPercent = ldr_.readPercent();             // 光照强度
+    latest_.mq2Percent = mq2_.readPercent();               // 烟雾浓度
+    latest_.smokeLevel = toSmokeLevel(latest_.mq2Percent); // 转换为烟雾等级
 
     // 火焰检测：超过60%阈值认为检测到火焰
     const uint8_t flamePercent = flame_.readPercent();
@@ -128,15 +126,15 @@ const char *SensorHub::toSmokeLevel(uint8_t mq2Percent) const
 {
     if (mq2Percent < 25)
     {
-        return "green";   // 安全
+        return "green"; // 安全
     }
     if (mq2Percent < 50)
     {
-        return "blue";    // 正常
+        return "blue"; // 正常
     }
     if (mq2Percent < 75)
     {
-        return "yellow";  // 警告
+        return "yellow"; // 警告
     }
-    return "red";        // 危险
+    return "red"; // 危险
 }

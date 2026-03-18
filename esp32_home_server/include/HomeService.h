@@ -1,7 +1,7 @@
 /**
  * @file HomeService.h
  * @brief 家庭智能服务头文件
- * 
+ *
  * 核心服务类，整合所有传感器和执行器，提供：
  * - 传感器数据采集与发布
  * - 自动化控制逻辑(定时开关窗帘)
@@ -14,6 +14,7 @@
 #define HOME_SERVICE_H
 
 #include <Arduino.h>
+#include <RTClib.h>
 
 #include "ConnectivityManager.h"
 #include "Controllerr.h"
@@ -94,41 +95,50 @@ private:
      * @brief 获取当前小时
      * @return int 当前小时(0-23)
      */
-    int currentHour() const;
+    int currentHour();
 
     /**
      * @brief 获取当前分钟
      * @return int 当前分钟(0-59)
      */
-    int currentMinute() const;
+    int currentMinute();
 
     /**
      * @brief 获取当前天索引
      * @return uint32_t 从1970年算起的天数
      */
-    uint32_t currentDayIndex() const;
+    uint32_t currentDayIndex();
+
+    /**
+     * @brief 尝试用NTP时间校准RTC
+     */
+    void syncRtcFromNtpIfNeeded();
 
     // 子系统组件
-    SensorHub sensors_;                 ///< 传感器集线器
-    RelayFanController fan_;            ///< 风扇控制器
-    DualCurtainController curtain_;      ///< 窗帘控制器
-    BuzzerController buzzer_;           ///< 蜂鸣器控制器
-    IRController ir_;                   ///< 红外控制器
-    ConnectivityManager net_;            ///< 网络管理器
+    SensorHub sensors_;             ///< 传感器集线器
+    RelayFanController fan_;        ///< 风扇控制器
+    DualCurtainController curtain_; ///< 窗帘控制器
+    BuzzerController buzzer_;       ///< 蜂鸣器控制器
+    IRController ir_;               ///< 红外控制器
+    ConnectivityManager net_;       ///< 网络管理器
 
     // 状态变量
-    unsigned long lastSensorPublishMs_ = 0;    ///< 上次传感器发布
-    unsigned long lastAutomationMs_ = 0;       ///< 上次自动化执行
-    unsigned long flameDetectedSinceMs_ = 0;   ///< 火焰检测开始时间
-    unsigned long lastHighSmokeBeepMs_ = 0;    ///< 上次烟雾警报蜂鸣
-    unsigned long lastFlamePatternMs_ = 0;     ///< 上次火焰警报模式
+    unsigned long lastSensorPublishMs_ = 0;  ///< 上次传感器发布
+    unsigned long lastAutomationMs_ = 0;     ///< 上次自动化执行
+    unsigned long flameDetectedSinceMs_ = 0; ///< 火焰检测开始时间
+    unsigned long lastHighSmokeBeepMs_ = 0;  ///< 上次烟雾警报蜂鸣
+    unsigned long lastFlamePatternMs_ = 0;   ///< 上次火焰警报模式
 
-    uint32_t lastOpenDay_ = UINT32_MAX;      ///< 上次窗帘打开日期
-    uint32_t lastCloseDay_ = UINT32_MAX;     ///< 上次窗帘关闭日期
-    bool fireAlarmReported_ = false;          ///< 火警是否已上报
+    uint32_t lastOpenDay_ = UINT32_MAX;  ///< 上次窗帘打开日期
+    uint32_t lastCloseDay_ = UINT32_MAX; ///< 上次窗帘关闭日期
+    bool fireAlarmReported_ = false;     ///< 火警是否已上报
 
-    uint32_t bootBaseSeconds_ = 0;            ///< 启动时间基准(无NTP时使用)
-    bool ntpConfigured_ = false;              ///< NTP是否已配置
+    uint32_t bootBaseSeconds_ = 0;  ///< 启动时间基准(无NTP时使用)
+    bool ntpConfigured_ = false;    ///< NTP是否已配置
+    bool webFsReady_ = false;       ///< Web文件系统是否已挂载
+    RTC_DS3231 rtc_;                ///< DS3231 RTC时钟芯片
+    bool rtcAvailable_ = false;     ///< RTC模块是否可用
+    bool rtcSyncedFromNtp_ = false; ///< RTC是否已由NTP校时
 };
 
 #endif

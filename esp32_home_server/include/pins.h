@@ -44,8 +44,8 @@ namespace pins
      * 双舵机配置：一个控制左侧，一个控制右侧
      * 舵机角度范围：0-180度
      */
-    static constexpr uint8_t SERVO_1 = 19;
-    static constexpr uint8_t SERVO_2 = 21;
+    static constexpr uint8_t SERVO_1 = 16;
+    static constexpr uint8_t SERVO_2 = 17;
     static constexpr uint8_t SERVO_3 = 22;
     static constexpr uint8_t SERVO_4 = 14;
 
@@ -61,9 +61,16 @@ namespace pins
      * ESP32通过UART2向外接ESP8266模块发送红外控制命令，
      * ESP8266负责真正的红外收发工作。
      */
-    static constexpr uint8_t IR_BRIDGE_UART_RX = 16;
-    static constexpr uint8_t IR_BRIDGE_UART_TX = 17;
+    static constexpr uint8_t IR_BRIDGE_UART_RX = 19;
+    static constexpr uint8_t IR_BRIDGE_UART_TX = 21;
     static constexpr uint32_t IR_BRIDGE_UART_BAUD = 115200;
+
+    /**
+     * @brief RTC(DS3231) I2C引脚
+     * @details 使用独立I2C引脚，避免与舵机GPIO冲突
+     */
+    static constexpr uint8_t RTC_I2C_SDA = 32;
+    static constexpr uint8_t RTC_I2C_SCL = 33;
 
 } // namespace pins
 
