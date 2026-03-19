@@ -46,8 +46,6 @@ namespace pins
      */
     static constexpr uint8_t SERVO_1 = 16;
     static constexpr uint8_t SERVO_2 = 17;
-    static constexpr uint8_t SERVO_3 = 22;
-    static constexpr uint8_t SERVO_4 = 14;
 
     /**
      * @brief 蜂鸣器引脚
