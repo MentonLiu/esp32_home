@@ -1,3 +1,22 @@
+# 变更说明 0.0.7
+
+日期：2026-03-19
+
+## 0.0.7 更新内容（新增）
+1. 将 Web 控制台与固件逻辑解耦：删除 `src/HomeServiceControl.cpp` 中内嵌 HTML，改为通过 LittleFS 加载 `web/index.html`。
+2. 新增文件系统访问容错：LittleFS 挂载失败返回 `503`，页面文件缺失返回 `404`，并上报状态主题错误信息。
+3. 补全 `platformio.ini` 中库解析与文件系统相关字段：
+- 增加 `board_build.filesystem = littlefs`
+- 增加 `data_dir = web`
+- 增加 `lib_ldf_mode = chain+`
+4. 构建与部署流程调整：需要在固件上传后执行一次 `pio run -t uploadfs` 同步网页资源。
+
+## 版本说明
+- 当前版本：0.0.7
+- 上一版本记录：0.0.6
+
+---
+
 # 变更说明 0.0.6
 
 日期：2026-03-18

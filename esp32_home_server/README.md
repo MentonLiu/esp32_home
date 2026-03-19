@@ -15,6 +15,7 @@
 ## 2. 目录结构
 - include/: 头文件（引脚、传感器、控制器、网络管理、服务总控）
 - src/: 业务实现
+- web/: 前端页面静态资源（通过 LittleFS 挂载到设备）
 - doc/: 需求文档与流程图
 - platformio.ini: 编译配置与库依赖
 
@@ -66,6 +67,10 @@
 - NTPClient
 - RTClib（DS3231）
 
+并启用 LittleFS：
+- board_build.filesystem = littlefs
+- data_dir = web
+
 ## 5. 环境准备
 1. 安装 VS Code 与 PlatformIO 插件。
 2. 打开项目根目录。
@@ -91,11 +96,12 @@
 ```bash
 pio run
 pio run -t upload
+pio run -t uploadfs
 pio device monitor -b 115200
 ```
 
 说明：
-1. 运行时首页使用固件内置页面，不依赖额外文件系统烧录。
+1. 页面资源位于 web/index.html，需通过 uploadfs 写入 LittleFS 后才能访问首页。
 
 ## 8. 启动行为说明
 系统启动后流程：
