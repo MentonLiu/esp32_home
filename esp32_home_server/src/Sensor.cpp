@@ -1,30 +1,18 @@
-/**
- * @file Sensor.cpp
- * @brief 传感器实现文件
- *
- * 实现所有传感器类的具体功能
- */
-
 #include "Sensor.h"
 
 #include <math.h>
 
-// ============ DHTSensor 实现 ============
+DhtSensor::DhtSensor(uint8_t pin, uint8_t sensorType) : dht_(pin, sensorType) {}
 
-DHTSensor::DHTSensor(uint8_t pin) : dht_(pin, DHT11) {}
-
-void DHTSensor::begin() { dht_.begin(); }
-
-/**
- * @brief 读取温湿度数据
- * @return bool 读取是否成功(失败时error会包含错误信息)
- */
-bool DHTSensor::read(float &temperatureC, float &humidityPercent, String &error)
+void DhtSensor::begin()
 {
-    temperatureC = dht_.readTemperature(); // 读取温度
-    humidityPercent = dht_.readHumidity(); // 读取湿度
+    dht_.begin();
+}
 
-    // 检查是否为有效数值(isnan表示读取失败)
+bool DhtSensor::read(float &temperatureC, float &humidityPercent, String &error)
+{
+    temperatureC = dht_.readTemperature();
+    humidityPercent = dht_.readHumidity();
     if (isnan(temperatureC) || isnan(humidityPercent))
     {
         error = "dht_read_failed";
@@ -34,107 +22,94 @@ bool DHTSensor::read(float &temperatureC, float &humidityPercent, String &error)
     return true;
 }
 
-// ============ AnalogPercentSensor 实现 ============
+AnalogPercentSensor::AnalogPercentSensor(uint8_t pin, bool inverted, uint16_t adcMax)
+    : pin_(pin), inverted_(inverted), adcMax_(adcMax) {}
 
-AnalogPercentSensor::AnalogPercentSensor(uint8_t pin, bool inverted) : pin_(pin), inverted_(inverted) {}
+void AnalogPercentSensor::begin() const
+{
+    pinMode(pin_, INPUT);
+}
 
-void AnalogPercentSensor::begin() const { pinMode(pin_, INPUT); }
-
-/**
- * @brief 读取模拟传感器并转换为百分比
- * @details ESP32 ADC分辨率12位(0-4095)，映射到0-100%
- * @return uint8_t 百分比值
- */
 uint8_t AnalogPercentSensor::readPercent() const
 {
-    const int raw = analogRead(pin_); // 读取原始ADC值(0-4095)
-    // 映射到百分比(0-100)
-    int percent = map(raw, 0, 4095, 0, 100);
+    int raw = analogRead(pin_);
+    raw = constrain(raw, 0, adcMax_);
 
-    // 翻转处理(光敏电阻等低电平表示高值)
+    int percent = map(raw, 0, adcMax_, 0, 100);
     if (inverted_)
     {
         percent = 100 - percent;
     }
 
-    percent = constrain(percent, 0, 100); // 确保在有效范围内
-    return static_cast<uint8_t>(percent);
+    return static_cast<uint8_t>(constrain(percent, 0, 100));
 }
 
-// ============ SensorHub 实现 ============
-
-/**
- * @brief 构造函数
- * @details 初始化所有子传感器，LDR配置为翻转模式(光线越强值越高)
- */
-SensorHub::SensorHub(uint8_t dhtPin, uint8_t ldrPin, uint8_t mq2Pin, uint8_t flamePin)
-    : dht_(dhtPin), ldr_(ldrPin, true), mq2_(mq2Pin, false), flame_(flamePin, false) {}
+SensorHub::SensorHub(uint8_t dhtPin,
+                     uint8_t lightPin,
+                     uint8_t mq2Pin,
+                     uint8_t flamePin,
+                     uint8_t dhtType)
+    : dht_(dhtPin, dhtType),
+      light_(lightPin, true),
+      mq2_(mq2Pin, false),
+      flame_(flamePin, false)
+{
+}
 
 void SensorHub::begin()
 {
     dht_.begin();
-    ldr_.begin();
+    light_.begin();
     mq2_.begin();
     flame_.begin();
 }
 
-/**
- * @brief 更新所有传感器数据
- * @details 采样间隔500ms，防止频繁读取导致数据不稳定
- * @return bool 是否成功执行(受采样间隔控制)
- */
-bool SensorHub::update()
+bool SensorHub::poll(unsigned long intervalMs)
 {
-    // 采样间隔控制，每500ms更新一次
-    if (millis() - lastSampleMs_ < 500)
+    const unsigned long now = millis();
+    if (now - lastSampleMs_ < intervalMs)
     {
         return false;
     }
 
-    lastSampleMs_ = millis(); // 更新时间戳
-    latest_.timestamp = millis();
+    lastSampleMs_ = now;
+    latest_.timestamp = now;
     latest_.hasError = false;
     latest_.errorMessage = "";
 
-    // 读取DHT温湿度
-    String dhtError;
-    if (!dht_.read(latest_.temperatureC, latest_.humidityPercent, dhtError))
+    String error;
+    if (!dht_.read(latest_.temperatureC, latest_.humidityPercent, error))
     {
         latest_.hasError = true;
-        latest_.errorMessage = dhtError;
+        latest_.errorMessage = error;
     }
 
-    // 读取模拟传感器
-    latest_.lightPercent = ldr_.readPercent();             // 光照强度
-    latest_.mq2Percent = mq2_.readPercent();               // 烟雾浓度
-    latest_.smokeLevel = toSmokeLevel(latest_.mq2Percent); // 转换为烟雾等级
-
-    // 火焰检测：超过60%阈值认为检测到火焰
-    const uint8_t flamePercent = flame_.readPercent();
-    latest_.flameDetected = flamePercent >= 60;
-
+    latest_.lightPercent = light_.readPercent();
+    latest_.mq2Percent = mq2_.readPercent();
+    latest_.smokeLevel = smokeLevelFromPercent(latest_.mq2Percent);
+    latest_.flameDetected = flame_.readPercent() >= 60;
     return true;
 }
 
-const SensorSnapshot &SensorHub::snapshot() const { return latest_; }
-
-/**
- * @brief 将MQ2传感器百分比转换为烟雾等级
- * @return const char* 等级字符串 (green/blue/yellow/red)
- */
-const char *SensorHub::toSmokeLevel(uint8_t mq2Percent) const
+const SensorSnapshot &SensorHub::latest() const
 {
-    if (mq2Percent < 25)
+    return latest_;
+}
+
+String SensorHub::smokeLevelFromPercent(uint8_t percent) const
+{
+    if (percent < 25)
     {
-        return "green"; // 安全
+        return "green";
     }
-    if (mq2Percent < 50)
+    if (percent < 50)
     {
-        return "blue"; // 正常
+        return "blue";
     }
-    if (mq2Percent < 75)
+    if (percent < 75)
     {
-        return "yellow"; // 警告
+        return "yellow";
     }
-    return "red"; // 危险
+
+    return "red";
 }

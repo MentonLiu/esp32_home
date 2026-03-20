@@ -1,135 +1,584 @@
 <!doctype html>
-<html>
+<html lang="zh-CN">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ESP32 Home Console</title>
+    <title>ESP32 Home Server</title>
     <style>
         :root {
-            --bg: #f4f7f1;
-            --panel: #ffffff;
-            --text: #1f2a1f;
-            --accent: #2f7d32;
-            --warn: #cc7a00;
-            --danger: #c62828;
+            --bg: #f3efe7;
+            --panel: rgba(255, 252, 247, 0.9);
+            --ink: #1c2a2a;
+            --muted: #64706f;
+            --line: rgba(36, 56, 55, 0.12);
+            --brand: #135d66;
+            --brand-2: #ea6f2d;
+            --danger: #bb2d3b;
+            --warn: #d28b13;
+            --safe: #2f7d4a;
+            --shadow: 0 18px 45px rgba(25, 40, 39, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
             margin: 0;
-            font-family: "Trebuchet MS", "Segoe UI", sans-serif;
-            background: linear-gradient(160deg, #e6efe0, #fdf8ec);
-            color: var(--text);
+            color: var(--ink);
+            font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(19, 93, 102, 0.2), transparent 30%),
+                radial-gradient(circle at top right, rgba(234, 111, 45, 0.18), transparent 34%),
+                linear-gradient(160deg, #f6f1e8, #eef5f4 52%, #f8f3ed);
+            min-height: 100vh;
         }
 
-        .wrap {
-            max-width: 980px;
+        .page {
+            max-width: 1180px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 24px 16px 48px;
         }
 
-        .card {
+        .hero,
+        .panel {
             background: var(--panel);
-            border-radius: 16px;
-            padding: 16px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-            margin-bottom: 14px;
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+        }
+
+        .hero {
+            padding: 28px;
+            display: grid;
+            gap: 18px;
+        }
+
+        .hero-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: start;
+            flex-wrap: wrap;
+        }
+
+        h1,
+        h2 {
+            margin: 0;
         }
 
         h1 {
-            margin: 0 0 12px;
-            font-size: 1.6rem;
+            font-size: clamp(1.8rem, 3vw, 3rem);
+            letter-spacing: 0.02em;
+        }
+
+        .sub {
+            margin: 10px 0 0;
+            max-width: 720px;
+            color: var(--muted);
+            line-height: 1.7;
+            font-size: 0.98rem;
+        }
+
+        .hero-badges,
+        .nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .badge,
+        .nav a {
+            border-radius: 999px;
+            padding: 10px 14px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            color: var(--ink);
+            font-weight: 600;
         }
 
         .grid {
             display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .stack {
+            display: grid;
+            gap: 16px;
+        }
+
+        .panel {
+            padding: 20px;
+        }
+
+        .title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .tiny {
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .sensor-grid {
+            display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 10px;
+            gap: 12px;
         }
 
-        .k {
-            font-size: 0.86rem;
-            opacity: 0.7;
+        .sensor-card {
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.74);
         }
 
-        .v {
-            font-size: 1.2rem;
+        .sensor-card .label {
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .sensor-card .value {
+            font-size: 1.45rem;
             font-weight: 700;
+        }
+
+        .status-banner {
+            border-radius: 18px;
+            padding: 14px 16px;
+            background: linear-gradient(135deg, rgba(19, 93, 102, 0.08), rgba(234, 111, 45, 0.12));
+            border: 1px solid var(--line);
+            display: grid;
+            gap: 4px;
+        }
+
+        .status-banner strong {
+            font-size: 1rem;
+        }
+
+        .error {
+            color: var(--danger);
+        }
+
+        .controls {
+            display: grid;
+            gap: 14px;
+        }
+
+        .button-row,
+        .preset-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         button {
             border: 0;
-            border-radius: 10px;
-            padding: 10px 14px;
-            margin: 4px;
-            background: var(--accent);
-            color: #fff;
+            border-radius: 14px;
+            padding: 12px 14px;
+            min-width: 84px;
+            font-size: 0.95rem;
             font-weight: 700;
+            color: white;
+            background: var(--brand);
         }
 
-        .warn {
+        button.secondary {
+            background: var(--brand-2);
+        }
+
+        button.warn {
             background: var(--warn);
         }
 
-        .danger {
+        button.danger {
             background: var(--danger);
         }
 
-        input[type=range] {
+        input[type="range"],
+        input[type="number"],
+        input[type="text"] {
             width: 100%;
+        }
+
+        input[type="range"] {
+            accent-color: var(--brand);
+        }
+
+        .range-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.92rem;
+            margin-bottom: 8px;
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .field {
+            display: grid;
+            gap: 6px;
+        }
+
+        .field label {
+            font-size: 0.84rem;
+            color: var(--muted);
+        }
+
+        .field input {
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.76);
+            font: inherit;
+            color: var(--ink);
+        }
+
+        .log {
+            border: 1px dashed var(--line);
+            background: rgba(255, 255, 255, 0.55);
+            border-radius: 16px;
+            padding: 12px 14px;
+            color: var(--muted);
+            min-height: 64px;
+            line-height: 1.6;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 0.82rem;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid var(--line);
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .dot.green {
+            background: #2f7d4a;
+        }
+
+        .dot.blue {
+            background: #1a75bb;
+        }
+
+        .dot.yellow {
+            background: #d7a107;
+        }
+
+        .dot.red {
+            background: #c33939;
+        }
+
+        @media (max-width: 900px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .field-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 
 <body>
-    <div class="wrap">
-        <div class="card">
-            <h1>ESP32 Home Console</h1>
-            <div id="net"></div>
-        </div>
-        <div class="card grid" id="sensorGrid"></div>
-        <div class="card">
-            <div><b>Curtain</b></div>
-            <input id="curtainRange" type="range" min="0" max="180" value="0" />
-            <div>
-                <button onclick="sendCmd({device:'curtain',preset:0})">Close</button>
-                <button onclick="sendCmd({device:'curtain',preset:2})">Half</button>
-                <button onclick="sendCmd({device:'curtain',preset:4})">Open</button>
+    <div class="page">
+        <section class="hero">
+            <div class="hero-top">
+                <div>
+                    <h1>ESP32 智能家居服务端</h1>
+                    <p class="sub">本地页面与云端接口共用一套状态模型。无论设备连接家用 Wi-Fi，还是回落到
+                        <code>esp32-server</code> 热点，页面都会持续轮询
+                        <code>/api/status</code> 并通过 <code>/api/control</code> 下发控制命令。
+                    </p>
+                </div>
+                <div class="hero-badges">
+                    <span class="badge" id="modeBadge">模式加载中</span>
+                    <span class="badge" id="ipBadge">IP 加载中</span>
+                </div>
             </div>
-        </div>
-        <div class="card">
-            <div><b>Fan</b></div>
-            <div>
-                <button onclick="sendCmd({device:'fan',mode:'off'})" class="danger">Off</button>
-                <button onclick="sendCmd({device:'fan',mode:'low'})">Low</button>
-                <button onclick="sendCmd({device:'fan',mode:'medium'})">Medium</button>
-                <button onclick="sendCmd({device:'fan',mode:'high'})" class="warn">High</button>
+            <div class="nav">
+                <a href="/project-map">查看项目结构图</a>
+                <a href="/api/status" target="_blank" rel="noreferrer">查看状态接口</a>
+            </div>
+        </section>
+
+        <div class="grid">
+            <div class="stack">
+                <section class="panel">
+                    <div class="title-row">
+                        <h2>实时传感器</h2>
+                        <span class="tiny" id="updatedAt">等待首次采样</span>
+                    </div>
+                    <div class="sensor-grid">
+                        <article class="sensor-card">
+                            <div class="label">温度</div>
+                            <div class="value" id="temperatureValue">--</div>
+                        </article>
+                        <article class="sensor-card">
+                            <div class="label">湿度</div>
+                            <div class="value" id="humidityValue">--</div>
+                        </article>
+                        <article class="sensor-card">
+                            <div class="label">光照</div>
+                            <div class="value" id="lightValue">--</div>
+                        </article>
+                        <article class="sensor-card">
+                            <div class="label">MQ2 烟雾</div>
+                            <div class="value" id="smokeValue">--</div>
+                        </article>
+                        <article class="sensor-card">
+                            <div class="label">烟雾等级</div>
+                            <div class="value" id="smokeLevelValue">--</div>
+                        </article>
+                        <article class="sensor-card">
+                            <div class="label">火焰状态</div>
+                            <div class="value" id="flameValue">--</div>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="title-row">
+                        <h2>系统状态</h2>
+                        <span class="pill"><span class="dot green" id="smokeDot"></span><span id="smokeText">安全</span></span>
+                    </div>
+                    <div class="status-banner">
+                        <strong id="systemHeadline">系统已待命</strong>
+                        <span id="systemDetails">采样、控制与自动化状态将显示在这里。</span>
+                        <span class="tiny error" id="errorMessage"></span>
+                    </div>
+                </section>
+            </div>
+
+            <div class="stack">
+                <section class="panel">
+                    <div class="title-row">
+                        <h2>窗帘控制</h2>
+                        <span class="tiny" id="curtainAngleText">角度 0°</span>
+                    </div>
+                    <div class="controls">
+                        <div>
+                            <div class="range-label">
+                                <span>无极调节</span>
+                                <strong id="curtainRangeValue">0°</strong>
+                            </div>
+                            <input id="curtainRange" type="range" min="0" max="180" value="0" />
+                        </div>
+                        <div class="preset-row">
+                            <button data-curtain-preset="0" class="danger">关闭</button>
+                            <button data-curtain-preset="1">1/4</button>
+                            <button data-curtain-preset="2">半开</button>
+                            <button data-curtain-preset="3" class="secondary">3/4</button>
+                            <button data-curtain-preset="4" class="warn">打开</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="title-row">
+                        <h2>风扇控制</h2>
+                        <span class="tiny" id="fanSpeedText">速度 0%</span>
+                    </div>
+                    <div class="controls">
+                        <div class="button-row">
+                            <button data-fan-mode="off" class="danger">关闭</button>
+                            <button data-fan-mode="low">弱</button>
+                            <button data-fan-mode="medium" class="secondary">中</button>
+                            <button data-fan-mode="high" class="warn">强</button>
+                        </div>
+                        <div>
+                            <div class="range-label">
+                                <span>百分比调速</span>
+                                <strong id="fanRangeValue">0%</strong>
+                            </div>
+                            <input id="fanRange" type="range" min="0" max="100" value="0" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="title-row">
+                        <h2>红外桥接</h2>
+                        <span class="tiny">UART 透传到红外从设备</span>
+                    </div>
+                    <div class="controls">
+                        <div class="field-grid">
+                            <div class="field">
+                                <label for="irProtocol">协议</label>
+                                <input id="irProtocol" type="text" value="NEC" />
+                            </div>
+                            <div class="field">
+                                <label for="irRepeats">重复次数</label>
+                                <input id="irRepeats" type="number" min="0" max="10" value="0" />
+                            </div>
+                            <div class="field">
+                                <label for="irAddress">地址</label>
+                                <input id="irAddress" type="number" min="0" value="1" />
+                            </div>
+                            <div class="field">
+                                <label for="irCommand">命令</label>
+                                <input id="irCommand" type="number" min="0" value="2" />
+                            </div>
+                        </div>
+                        <div class="button-row">
+                            <button id="sendIrBtn">发送红外命令</button>
+                            <button id="learnIrBtn" class="secondary">进入学习模式</button>
+                        </div>
+                        <div class="log" id="actionLog">最近动作会显示在这里。</div>
+                    </div>
+                </section>
             </div>
         </div>
     </div>
+
     <script>
+        const curtainRange = document.getElementById('curtainRange');
+        const fanRange = document.getElementById('fanRange');
+        let pendingCurtainTimer = 0;
+        let pendingFanTimer = 0;
+
+        function fmtNumber(value, suffix) {
+            if (typeof value !== 'number' || Number.isNaN(value)) {
+                return '--';
+            }
+            return `${value}${suffix}`;
+        }
+
+        function smokeTone(level) {
+            if (level === 'blue') return ['dot blue', '正常偏低'];
+            if (level === 'yellow') return ['dot yellow', '警告'];
+            if (level === 'red') return ['dot red', '危险'];
+            return ['dot green', '安全'];
+        }
+
+        async function sendCommand(body, label) {
+            try {
+                await fetch('/api/control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                document.getElementById('actionLog').textContent = `${label}：${JSON.stringify(body)}`;
+                await fetchStatus();
+            } catch (error) {
+                document.getElementById('actionLog').textContent = `动作失败：${error.message}`;
+            }
+        }
+
         async function fetchStatus() {
-            const res = await fetch('/api/status');
-            const data = await res.json();
-            document.getElementById('net').textContent = `mode=${data.mode} ip=${data.ip}`;
-            document.getElementById('sensorGrid').innerHTML = `
-    <div><div class='k'>temperature (DHT11)</div><div class='v'>${data.temperatureC} C</div></div>
-    <div><div class='k'>humidity (DHT11)</div><div class='v'>${data.humidityPercent} %</div></div>
-    <div><div class='k'>light</div><div class='v'>${data.lightPercent} %</div></div>
-    <div><div class='k'>smoke</div><div class='v'>${data.smokeLevel} (${data.mq2Percent}%)</div></div>
-    <div><div class='k'>flame</div><div class='v'>${data.flameDetected ? 'YES' : 'NO'}</div></div>
-    <div><div class='k'>fan</div><div class='v'>${data.fanSpeedPercent}%</div></div>
-    <div><div class='k'>curtain</div><div class='v'>${data.curtainAngle} deg</div></div>
-  `;
-            document.getElementById('curtainRange').value = data.curtainAngle;
+            try {
+                const response = await fetch('/api/status', { cache: 'no-store' });
+                const data = await response.json();
+
+                document.getElementById('modeBadge').textContent = `模式 ${data.mode}`;
+                document.getElementById('ipBadge').textContent = `IP ${data.ip}`;
+                document.getElementById('updatedAt').textContent = `最近刷新 ${new Date().toLocaleTimeString()}`;
+
+                document.getElementById('temperatureValue').textContent = fmtNumber(Number(data.temperatureC).toFixed(1), ' °C');
+                document.getElementById('humidityValue').textContent = fmtNumber(Number(data.humidityPercent).toFixed(1), ' %');
+                document.getElementById('lightValue').textContent = fmtNumber(data.lightPercent, ' %');
+                document.getElementById('smokeValue').textContent = fmtNumber(data.mq2Percent, ' %');
+                document.getElementById('smokeLevelValue').textContent = data.smokeLevel || '--';
+                document.getElementById('flameValue').textContent = data.flameDetected ? '检测到火焰' : '未检测到';
+
+                document.getElementById('curtainAngleText').textContent = `角度 ${data.curtainAngle}°`;
+                document.getElementById('curtainRangeValue').textContent = `${data.curtainAngle}°`;
+                document.getElementById('fanSpeedText').textContent = `速度 ${data.fanSpeedPercent}%`;
+                document.getElementById('fanRangeValue').textContent = `${data.fanSpeedPercent}%`;
+
+                curtainRange.value = data.curtainAngle;
+                fanRange.value = data.fanSpeedPercent;
+
+                const [dotClass, smokeText] = smokeTone(data.smokeLevel);
+                document.getElementById('smokeDot').className = dotClass;
+                document.getElementById('smokeText').textContent = smokeText;
+
+                const headline = data.flameDetected
+                    ? '火焰传感器已触发'
+                    : data.mq2Percent >= 75
+                        ? '烟雾浓度过高，建议立即检查'
+                        : data.mode === 'cloud'
+                            ? '系统运行在云端模式'
+                            : '系统运行在本地热点模式';
+                const details = `风扇 ${data.fanSpeedPercent}% · 窗帘 ${data.curtainAngle}° · 光照 ${data.lightPercent}%`;
+
+                document.getElementById('systemHeadline').textContent = headline;
+                document.getElementById('systemDetails').textContent = details;
+                document.getElementById('errorMessage').textContent = data.error ? `传感器异常：${data.errorMessage}` : '';
+            } catch (error) {
+                document.getElementById('systemHeadline').textContent = '状态拉取失败';
+                document.getElementById('systemDetails').textContent = error.message;
+                document.getElementById('errorMessage').textContent = '';
+            }
         }
 
-        async function sendCmd(body) {
-            await fetch('/api/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        }
+        curtainRange.addEventListener('input', (event) => {
+            const angle = Number(event.target.value);
+            document.getElementById('curtainRangeValue').textContent = `${angle}°`;
+            clearTimeout(pendingCurtainTimer);
+            pendingCurtainTimer = setTimeout(() => sendCommand({ device: 'curtain', angle }, '窗帘角度调整'), 120);
+        });
 
-        document.getElementById('curtainRange').addEventListener('input', (e) => {
-            sendCmd({ device: 'curtain', angle: Number(e.target.value) });
+        fanRange.addEventListener('input', (event) => {
+            const speedPercent = Number(event.target.value);
+            document.getElementById('fanRangeValue').textContent = `${speedPercent}%`;
+            clearTimeout(pendingFanTimer);
+            pendingFanTimer = setTimeout(() => sendCommand({ device: 'fan', speedPercent }, '风扇速度调整'), 120);
+        });
+
+        document.querySelectorAll('[data-curtain-preset]').forEach((button) => {
+            button.addEventListener('click', () => {
+                sendCommand({ device: 'curtain', preset: Number(button.dataset.curtainPreset) }, '窗帘预设控制');
+            });
+        });
+
+        document.querySelectorAll('[data-fan-mode]').forEach((button) => {
+            button.addEventListener('click', () => {
+                sendCommand({ device: 'fan', mode: button.dataset.fanMode }, '风扇模式控制');
+            });
+        });
+
+        document.getElementById('sendIrBtn').addEventListener('click', () => {
+            sendCommand({
+                device: 'ir',
+                action: 'send',
+                protocol: document.getElementById('irProtocol').value || 'NEC',
+                address: Number(document.getElementById('irAddress').value || 0),
+                command: Number(document.getElementById('irCommand').value || 0),
+                repeats: Number(document.getElementById('irRepeats').value || 0)
+            }, '红外协议发送');
+        });
+
+        document.getElementById('learnIrBtn').addEventListener('click', () => {
+            sendCommand({
+                device: 'ir',
+                action: 'learn',
+                args: { slot: 'default_slot' }
+            }, '红外学习模式');
         });
 
         setInterval(fetchStatus, 500);

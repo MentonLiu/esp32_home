@@ -1,3 +1,46 @@
+# 变更说明 0.1.0
+
+日期：2026-03-20
+
+## 0.1.0 更新内容
+1. 按 `/doc` 下需求文档、功能流程图和项目架构图，对 `include/` 与 `src/` 进行了整套重建。
+2. 删除旧 `HomeService` 方案，改为新的模块化结构：
+- `CentralProcessor`
+- `Sensor` / `SensorDataProcessor`
+- `Controllerr` / `ControllerCommandProcessor`
+- `ConnectivityManager`
+- `LocalProcessingProgram`
+- `AutomationEngine`
+3. 重建传感器链路，统一支持 DHT11、光照、MQ2、火焰采样，并按 0.5 秒周期输出标准化状态。
+4. 重建设备控制链路，统一支持：
+- 风扇开关与百分比调速
+- 双舵机窗帘角度控制与 0-4 预设档位
+- 蜂鸣器报警
+- 红外桥接协议发送、动作发送与 JSON 透传
+5. 重建联网逻辑，实现：
+- `home-WiFi` 路由器联网
+- `esp32-server` / `lbl450981` 本地热点兜底
+- 30 秒网络重检
+- Cloud / Local AP 双模式切换
+6. 重建本地 WebServer 页面与接口：
+- `/`
+- `/project-map`
+- `GET /api/status`
+- `POST /api/control`
+7. 重写 `web/index.html`，使页面与当前固件接口完全对应，并新增红外桥接控制区。
+8. 重写 `web/project-map.html`，让结构图页面与当前模块划分一致。
+9. 重写 `README.md`，同步新的目录结构、接口、构建方式、接线说明，并引用 `/doc` 中的图示资源。
+10. 保留并整理 MQTT 云接口约定，当前第一版继续使用占位域名，等待后续接入真实 Mosquitto 服务。
+11. 编译验证通过：
+- `pio run`
+- `pio run -t buildfs`
+
+## 版本说明
+- 当前版本：0.1.0
+- 上一版本记录：0.0.7
+
+---
+
 # 变更说明 0.0.7
 
 日期：2026-03-19

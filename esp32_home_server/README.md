@@ -1,225 +1,215 @@
-# ESP32-S3 Home Server 使用说明书
+# ESP32 Home Server
 
-## 1. 项目简介
-本项目基于 ESP32-S3 + PlatformIO（Arduino 框架），实现家庭环境监测与设备控制的服务端。
+基于 ESP32-S3 + PlatformIO + Arduino 的智能家居服务端。当前实现已经按 [`doc/功能要求.md`](doc/%E5%8A%9F%E8%83%BD%E8%A6%81%E6%B1%82.md) 和 `/doc` 下的流程图、架构图重建，目标是同时提供：
 
-核心能力：
-- 传感器采集：温湿度、光照、烟雾（MQ2）、火焰状态
-- 时钟能力：NTP 在线校时 + RTC（DS3231）离线保时
-- 设备控制：风扇继电器（含速度档位）、双舵机窗帘、蜂鸣器、红外桥接控制（ESP8266）
-- 通信模式：
-  - 可联网时：连接家用 Wi-Fi，使用 MQTT 对接云上位机
-  - 无网络时：自动切换本地 AP 热点并提供本地网页控制台
-- 自动化：按时开关窗帘、烟雾/火焰联动报警处理
+- 0.5 秒周期的环境传感器采集
+- 本地网页控制台与 HTTP 接口
+- 云端 MQTT 上行与控制接口预留
+- 风扇、窗帘、蜂鸣器、红外桥接控制
+- 断网自动切换热点、本地运行与自动化告警
 
-## 2. 目录结构
-- include/: 头文件（引脚、传感器、控制器、网络管理、服务总控）
-- src/: 业务实现
-- web/: 前端页面静态资源（通过 LittleFS 挂载到设备）
-- doc/: 需求文档与流程图
-- platformio.ini: 编译配置与库依赖
+## 项目图示
 
-## 3. 硬件与引脚说明
-当前引脚定义见 include/pins.h。
+### 架构图
 
-主要映射：
-- DHT11 数据脚: GPIO13
-- 光照传感器: GPIO4
-- MQ2 烟雾传感器: GPIO5
-- 火焰传感器占位: GPIO6
-- 继电器风扇: GPIO18
-- 舵机: GPIO16 / GPIO17（窗帘主控）
-- 蜂鸣器: GPIO12
-- 红外桥接串口 RX: GPIO15（接 ESP8266 TX）
-- 红外桥接串口 TX: GPIO14（接 ESP8266 RX）
-- 红外桥接波特率: 115200
+![项目架构图](doc/%E9%A1%B9%E7%9B%AE%E6%9E%B6%E6%9E%84.png)
 
-### 全设备接线表
+### 功能流程图
 
-| 设备/模块              | 模块引脚 | ESP32 引脚  | 说明                     |
-| ---------------------- | -------- | ----------- | ------------------------ |
-| DHT11 温湿度           | DATA     | GPIO13      | 单总线数据               |
-| 光照传感器（LDR 模块） | AO       | GPIO4       | 模拟量输入               |
-| MQ2 烟雾传感器         | AO       | GPIO5       | 模拟量输入               |
-| 火焰传感器（占位）     | AO/OUT   | GPIO6       | 当前作为火焰强度占位输入 |
-| 风扇继电器模块         | IN       | GPIO18      | 风扇控制信号             |
-| 舵机1（窗帘）          | PWM      | GPIO16      | 窗帘舵机控制             |
-| 舵机2（窗帘）          | PWM      | GPIO17      | 窗帘舵机控制             |
-| 蜂鸣器                 | SIG      | GPIO12      | 报警音输出               |
-| ESP8266 红外桥接       | RX       | GPIO14(TX2) | 与 ESP32-S3 TX2 交叉连接 |
-| ESP8266 红外桥接       | TX       | GPIO15(RX2) | 与 ESP32-S3 RX2 交叉连接 |
-| RTC（DS3231）          | SDA      | GPIO8       | I2C 数据线               |
-| RTC（DS3231）          | SCL      | GPIO9       | I2C 时钟线               |
+![功能流程图](doc/%E5%8A%9F%E8%83%BD%E6%B5%81%E7%A8%8B.png)
+
+## 当前目录结构
+
+- `include/`
+  头文件，包含引脚定义、统一数据契约、传感器/执行器接口、联网与自动化模块接口。
+- `src/`
+  固件实现，按“采集、控制、联网、页面、自动化、中央调度”拆分。
+- `web/`
+  LittleFS 页面资源，包含主控制台和项目结构图页面。
+- `doc/`
+  需求文档、客户端对接文档、流程图和架构图。
+- `platformio.ini`
+  PlatformIO 构建配置。
+- `changes.md`
+  版本变更记录。
+
+## 主要模块
+
+- `CentralProcessor`
+  系统总控，负责统一初始化与主循环调度。
+- `Sensor` + `SensorDataProcessor`
+  负责 DHT11、光照、MQ2、火焰采样，并标准化为统一状态数据。
+- `Controllerr` + `ControllerCommandProcessor`
+  负责风扇 PWM 调速、双舵机窗帘、蜂鸣器和红外桥接命令处理。
+- `ConnectivityManager`
+  负责家用 Wi-Fi、`esp32-server` 热点、WebServer 和 MQTT 连接管理。
+- `LocalProcessingProgram`
+  暴露 `/`、`/project-map`、`/api/status`、`/api/control`。
+- `AutomationEngine`
+  负责定时窗帘、烟雾联动、火焰联动与本地/联网时间保持。
+
+## 硬件接线
+
+当前引脚定义见 [`include/pins.h`](include/pins.h)。
+
+| 设备 | ESP32-S3 引脚 | 说明 |
+| --- | --- | --- |
+| DHT11 温湿度 | `GPIO13` | 保留 3 针 DHT11 方案 |
+| 光照传感器 | `GPIO4` | 模拟量输入 |
+| MQ2 烟雾传感器 | `GPIO5` | 模拟量输入 |
+| 火焰传感器 | `GPIO6` | 模拟量输入 |
+| 风扇继电器 / PWM | `GPIO18` | 排气扇控制 |
+| SG90 舵机 A | `GPIO16` | 窗帘控制 |
+| SG90 舵机 B | `GPIO17` | 窗帘控制 |
+| 蜂鸣器 | `GPIO12` | 报警声输出 |
+| 红外桥接 UART RX | `GPIO15` | 接外部桥接模块 TX |
+| 红外桥接 UART TX | `GPIO14` | 接外部桥接模块 RX |
+| RTC SDA | `GPIO8` | DS3231 I2C |
+| RTC SCL | `GPIO9` | DS3231 I2C |
 
 说明：
-1. 若 DS3231 模块未集成上拉电阻，建议在 SDA/SCL 各增加 4.7k 上拉到 3V3。
-2. 舵机与继电器建议使用独立稳定电源，避免瞬时电流导致 ESP32 复位。
 
-注意：dragram.json 中没有独立火焰模块，当前使用 GPIO6 作为火焰模拟输入占位。
+- 文档中提到的 `dragram.json` 当前不在仓库内，因此引脚表按现有项目与文档约束重建。
+- 风扇、舵机、蜂鸣器建议使用稳定供电，避免高负载时复位。
 
-## 4. 软件依赖
-已在 platformio.ini 中配置：
-- ArduinoJson
-- PubSubClient
-- DHT sensor library
-- Adafruit Unified Sensor
-- ESP32Servo
-- NTPClient
-- RTClib（DS3231）
+## 网络与运行模式
 
-并启用 LittleFS：
-- board_build.filesystem = littlefs
-- data_dir = web
+系统有两种模式：
 
-## 5. 环境准备
-1. 安装 VS Code 与 PlatformIO 插件。
-2. 打开项目根目录。
-3. 连接 ESP32-S3 开发板（esp32-s3-devkitc-1）。
+- `cloud`
+  连接 `home-WiFi` 后进入该模式，本地网页继续可用，同时启用 MQTT。
+- `local_ap`
+  无法联网时自动开启热点：
+  - SSID: `esp32-server`
+  - Password: `lbl450981`
 
-## 6. 关键配置
-请根据实际环境修改 src/HomeService.cpp 中常量：
+每 30 秒会重新检查联网状态，有网时回到 `cloud`，没网时保持 `local_ap`。
 
-- Wi-Fi（路由器）
-  - kStaSsid
-  - kStaPassword
-- AP 热点
-  - kApSsid（默认 esp32-server）
-  - kApPassword（默认 lbl450981）
-- MQTT 云端
-  - kMqttHost（默认 example.mqtt.server，需要改成实际地址）
-  - kMqttPort（默认 1883）
-  - kMqttClientId
+## 状态采集与自动化
 
-## 7. 编译与烧录
+- 传感器采样周期：`0.5s`
+- 页面轮询周期：`0.5s`
+- 自动化规则：
+  - 每天 `07:00` 自动打开窗帘
+  - 每天 `22:00` 自动关闭窗帘
+  - MQ2 高浓度时自动把风扇拉到高速
+  - MQ2 超高浓度时蜂鸣器短促报警
+  - 火焰持续超过 `45s` 时触发“短短长”报警音
+  - 火焰持续超过 `5min` 且处于云模式时，发布火警报警消息
+
+## HTTP 接口
+
+### `GET /api/status`
+
+返回当前模式、IP、传感器状态、风扇速度、窗帘角度和错误信息。
+
+示例：
+
+```json
+{
+  "mode": "local_ap",
+  "ip": "192.168.4.1",
+  "temperatureC": 26.3,
+  "humidityPercent": 58.0,
+  "lightPercent": 72,
+  "mq2Percent": 18,
+  "smokeLevel": "green",
+  "flameDetected": false,
+  "fanSpeedPercent": 0,
+  "curtainAngle": 90,
+  "error": false,
+  "errorMessage": ""
+}
+```
+
+### `POST /api/control`
+
+用于发送风扇、窗帘、红外控制命令。当前实现保持与客户端对接文档一致，HTTP 返回固定：
+
+```json
+{"ok":true}
+```
+
+控制命令示例：
+
+```json
+{"device":"fan","mode":"high"}
+```
+
+```json
+{"device":"fan","speedPercent":80}
+```
+
+```json
+{"device":"curtain","angle":135}
+```
+
+```json
+{"device":"curtain","preset":2}
+```
+
+```json
+{"device":"ir","action":"send","protocol":"NEC","address":1,"command":2,"repeats":0}
+```
+
+```json
+{"device":"ir","action":"learn","args":{"slot":"tv_power"}}
+```
+
+```json
+{"device":"ir","action":"send_json","commandJson":"{\"device\":\"ir\",\"action\":\"raw_send\",\"args\":{\"raw\":[9000,4500,560,560]}}"}
+```
+
+## MQTT 接口
+
+当前第一版已经实现接口和主题约定，但云端服务地址仍是占位值，需要按实际环境填写。
+
+- 状态主题：`esp32/home/status`
+- 传感器主题：`esp32/home/sensors`
+- 报警主题：`esp32/home/alarm`
+- 控制主题：`esp32/home/control`
+
+MQTT 配置位置：
+
+- [`src/MqttUpstream.cpp`](src/MqttUpstream.cpp)
+- [`src/CentralProcessor.cpp`](src/CentralProcessor.cpp)
+
+## 页面说明
+
+LittleFS 页面资源在 `web/` 目录：
+
+- [`web/index.html`](web/index.html)
+  实时展示传感器数据，并支持风扇、窗帘、红外桥接控制。
+- [`web/project-map.html`](web/project-map.html)
+  展示当前项目模块关系和运行流程。
+
+## 构建与烧录
+
 在项目根目录执行：
 
 ```bash
 pio run
+pio run -t buildfs
 pio run -t upload
 pio run -t uploadfs
 pio device monitor -b 115200
 ```
 
 说明：
-1. 页面资源位于 web/index.html，需通过 uploadfs 写入 LittleFS 后才能访问首页。
 
-## 8. 启动行为说明
-系统启动后流程：
-1. 尝试连接家用 Wi-Fi。
-2. 初始化 RTC（DS3231）并读取本地时钟。
-3. 若可联网：进入云模式，启用 MQTT 与局域网 Web 服务，并通过 NTP 校准 RTC。
-4. 若不可联网：启用 AP 热点（esp32-server）并启动本地网页，自动化任务使用 RTC 继续计时。
-5. 每 30 秒重新检测网络并自动切换模式。
+- `pio run` 编译固件
+- `pio run -t buildfs` 打包 `web/` 为 LittleFS 镜像
+- `pio run -t uploadfs` 把页面资源写入设备
 
-## 9. 传感器与数据广播
-- 采样周期：0.5 秒
-- MQTT 主题：
-  - 传感器数据: esp32/home/sensors
-  - 状态信息: esp32/home/status
-  - 报警信息: esp32/home/alarm
+## 当前验证状态
 
-传感器 JSON 字段示例：
-- sensorType
-- timestamp
-- temperatureC
-- humidityPercent
-- lightPercent
-- mq2Percent
-- smokeLevel（green/blue/yellow/red）
-- flameDetected
-- error / errorMessage
+已完成本地验证：
 
-## 10. 控制接口说明
-### 10.1 MQTT 控制主题
-- esp32/home/control
+- `pio run` 成功
+- `pio run -t buildfs` 成功
 
-### 10.2 本地 Web API
-- GET /api/status: 获取当前状态
-- POST /api/control: 发送控制命令（JSON）
+## 后续建议
 
-### 10.3 控制命令示例
-风扇控制：
-
-```json
-{"device":"fan","mode":"high"}
-```
-
-或指定速度：
-
-```json
-{"device":"fan","speedPercent":80}
-```
-
-窗帘控制：
-
-```json
-{"device":"curtain","angle":120}
-```
-
-或预设档位（0-4）：
-
-```json
-{"device":"curtain","preset":2}
-```
-
-红外 NEC 发送（兼容旧接口）：
-
-```json
-{"device":"ir","action":"send_nec","address":1,"command":2,"repeats":0}
-```
-
-红外通用协议发送（推荐）：
-
-```json
-{"device":"ir","action":"send","protocol":"NEC","address":1,"command":2,"repeats":0}
-```
-
-红外扩展动作（由ESP8266定义具体语义）：
-
-```json
-{"device":"ir","action":"learn","args":{"slot":"tv_power"}}
-```
-
-直接下发完整JSON命令（最高扩展性）：
-
-```json
-{"device":"ir","action":"send_json","commandJson":"{\"device\":\"ir\",\"action\":\"raw_send\",\"args\":{\"raw\":[9000,4500,560,560]}}"}
-```
-
-说明：ESP32将以上命令通过UART2按行发送到ESP8266，ESP8266负责红外收发与协议处理。
-
-## 11. 自动化与报警逻辑
-- 定时窗帘：
-  - 07:00 自动打开
-  - 22:00 自动关闭
-- 烟雾联动：
-  - MQ2 达到高浓度自动风扇高速
-  - 超高浓度触发短促蜂鸣
-- 火焰联动：
-  - 持续 45 秒触发“短短长”报警音
-  - 持续 5 分钟且处于云模式时，发送火警报警消息
-
-## 12. 本地网页控制台
-连接设备 AP 或同局域网后，浏览器访问设备 IP（串口可查看），可实现：
-- 传感器数据实时查看（0.5 秒刷新）
-- 风扇模式控制（关闭/低/中/高）
-- 窗帘滑块控制与预设控制
-
-## 13. 常见问题
-1. MQTT 无法连接
-- 检查 kMqttHost、端口与网络可达性。
-
-2. 读取 DHT 失败
-- 检查传感器供电、数据脚、上拉电阻。
-
-3. 本地网页打不开
-- 确认已连接 ESP32 AP，或确认设备与电脑在同一局域网。
-
-4. 红外功能异常
-- 检查ESP32-S3与ESP8266 UART接线（GPIO14/15交叉连接）和波特率是否一致。
-- 检查ESP8266固件是否支持对应 action/protocol。
-
-## 14. 后续建议
-- 将敏感配置（Wi-Fi、MQTT）提取到独立配置文件或 NVS。
-- 增加设备状态持久化与断电恢复。
-- 按需扩展云端协议与设备类型。
+- 将 `home-WiFi`、MQTT 域名、账号密码移到独立配置或 NVS。
+- 如果后续拿到真实接线图，可以继续微调 [`include/pins.h`](include/pins.h)。
+- 如果要对接第二块 ESP32 客户端，建议同时参考 [`doc/ESP32客户端对接文档.md`](doc/ESP32%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%AF%B9%E6%8E%A5%E6%96%87%E6%A1%A3.md)。
