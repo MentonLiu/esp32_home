@@ -6,6 +6,7 @@
 
 #include "SystemContracts.h"
 
+// 基于脉宽调制的继电器风扇驱动，支持档位与速度百分比两种接口。
 class RelayFanController
 {
 public:
@@ -19,6 +20,7 @@ public:
     uint8_t speedPercent() const;
 
 private:
+    // 将任意速度百分比映射到标准风扇档位区间。
     FanMode modeFromSpeed(uint8_t speedPercent) const;
 
     uint8_t pin_;
@@ -27,6 +29,7 @@ private:
     FanMode mode_ = FanMode::Off;
 };
 
+// 双舵机窗帘驱动。第二路舵机镜像第一路舵机以实现对拉。
 class DualCurtainController
 {
 public:
@@ -46,6 +49,7 @@ private:
     uint8_t currentAngle_ = 0;
 };
 
+// 当前实现使用短时阻塞鸣叫（简单可靠）。
 class BuzzerController
 {
 public:
@@ -60,12 +64,14 @@ private:
     uint8_t pwmChannel_;
 };
 
+// 从红外桥接串口读取到的一条解码消息。
 struct IRDecodedSignal
 {
     bool available = false;
     String payload;
 };
 
+// 红外收发文本协议的串口桥接封装。
 class IRController
 {
 public:
@@ -81,6 +87,7 @@ public:
     String lastCommand() const;
 
 private:
+    // 向桥接模块发送一行命令，并缓存最近一次命令。
     bool sendLine(const String &line);
 
     Stream *serial_ = nullptr;

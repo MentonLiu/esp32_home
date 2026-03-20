@@ -11,6 +11,7 @@ void SensorDataProcessor::begin()
 
 bool SensorDataProcessor::loop()
 {
+    // 轮询间隔未到时跳过本轮处理。
     if (!sensorHub_.poll())
     {
         return false;
@@ -23,11 +24,13 @@ bool SensorDataProcessor::loop()
 
 bool SensorDataProcessor::shouldPublish(unsigned long intervalMs)
 {
+    // 仅在有新鲜样本时允许发布。
     if (!hasFreshSample_)
     {
         return false;
     }
 
+    // 强制最小发布间隔。
     if (millis() - lastPublishMs_ < intervalMs)
     {
         return false;
@@ -45,6 +48,7 @@ const StandardSensorData &SensorDataProcessor::latest() const
 
 String SensorDataProcessor::buildSensorJson() const
 {
+    // 紧凑的上行传感器载荷。
     JsonDocument doc;
     doc["sensorType"] = "home_snapshot";
     doc["timestamp"] = latest_.timestamp;
@@ -64,6 +68,7 @@ String SensorDataProcessor::buildSensorJson() const
 
 String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip, const ControllerState &controllerState) const
 {
+    // 面向本地页面的状态载荷（含执行器状态）。
     JsonDocument doc;
     doc["mode"] = modeToString(mode);
     doc["ip"] = ip;
@@ -85,6 +90,7 @@ String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip
 
 void SensorDataProcessor::normalize(const SensorSnapshot &snapshot)
 {
+    // 保持一份标准化副本供自动化与控制接口共享。
     latest_.temperatureC = snapshot.temperatureC;
     latest_.humidityPercent = snapshot.humidityPercent;
     latest_.lightPercent = snapshot.lightPercent;

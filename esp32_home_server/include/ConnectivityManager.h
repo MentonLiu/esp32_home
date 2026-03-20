@@ -9,6 +9,7 @@
 
 #include "SystemContracts.h"
 
+// 负责无线联网与热点失败切换、内置网页服务和消息客户端生命周期。
 class ConnectivityManager
 {
 public:
@@ -36,9 +37,11 @@ public:
     OperatingMode mode() const;
     IPAddress localIp() const;
     String ipString() const;
+    // 暴露网页服务器对象，供本地程序注册路由。
     WebServer &webServer();
 
 private:
+    // 适配静态回调签名的转发函数。
     static void handleMqttDispatch(char *topic, uint8_t *payload, unsigned int length);
 
     void connectStation(bool longWait);
@@ -70,6 +73,7 @@ private:
     unsigned long lastModeCheckMs_ = 0;
     unsigned long lastMqttRetryMs_ = 0;
 
+    // 供静态回调使用的全局单例指针。
     static ConnectivityManager *instance_;
 };
 

@@ -11,6 +11,7 @@ void DhtSensor::begin()
 
 bool DhtSensor::read(float &temperatureC, float &humidityPercent, String &error)
 {
+    // 温湿度传感器可能出现瞬时读取失败，是否保留旧值由上层决定。
     temperatureC = dht_.readTemperature();
     humidityPercent = dht_.readHumidity();
     if (isnan(temperatureC) || isnan(humidityPercent))
@@ -32,6 +33,7 @@ void AnalogPercentSensor::begin() const
 
 uint8_t AnalogPercentSensor::readPercent() const
 {
+    // 将模数采样读数归一化为 0-100 百分比。
     int raw = analogRead(pin_);
     raw = constrain(raw, 0, adcMax_);
 
@@ -58,6 +60,7 @@ SensorHub::SensorHub(uint8_t dhtPin,
 
 void SensorHub::begin()
 {
+    // 一次性初始化全部硬件通道。
     dht_.begin();
     light_.begin();
     mq2_.begin();
@@ -66,6 +69,7 @@ void SensorHub::begin()
 
 bool SensorHub::poll(unsigned long intervalMs)
 {
+    // 维持固定最小采样间隔，降低传感器抖动与开销。
     const unsigned long now = millis();
     if (now - lastSampleMs_ < intervalMs)
     {
@@ -73,10 +77,12 @@ bool SensorHub::poll(unsigned long intervalMs)
     }
 
     lastSampleMs_ = now;
+    // 本次采样前先清空错误状态。
     latest_.timestamp = now;
     latest_.hasError = false;
     latest_.errorMessage = "";
 
+    // 温湿度传感器失败会记录错误，但不阻断其他传感器更新。
     String error;
     if (!dht_.read(latest_.temperatureC, latest_.humidityPercent, error))
     {
@@ -87,6 +93,7 @@ bool SensorHub::poll(unsigned long intervalMs)
     latest_.lightPercent = light_.readPercent();
     latest_.mq2Percent = mq2_.readPercent();
     latest_.smokeLevel = smokeLevelFromPercent(latest_.mq2Percent);
+    // 火焰检测采用百分比阈值二值判定。
     latest_.flameDetected = flame_.readPercent() >= 60;
     return true;
 }
@@ -98,6 +105,7 @@ const SensorSnapshot &SensorHub::latest() const
 
 String SensorHub::smokeLevelFromPercent(uint8_t percent) const
 {
+    // 提供给页面与自动化使用的粗粒度风险分级。
     if (percent < 25)
     {
         return "green";

@@ -8,6 +8,7 @@
 #include "SensorDataProcessor.h"
 #include "SystemContracts.h"
 
+// 本地热点模式下的网页应用宿主与接口路由器。
 class LocalProcessingProgram
 {
 public:
@@ -19,7 +20,9 @@ public:
     void begin();
 
 private:
+    // 注册静态页面与控制端点。
     void setupRoutes();
+    // 从本地文件系统流式输出单个文件到网页响应。
     bool serveFile(const char *path, const char *contentType);
 
     ConnectivityManager &net_;

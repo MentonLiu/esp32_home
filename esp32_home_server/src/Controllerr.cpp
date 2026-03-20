@@ -7,6 +7,7 @@ RelayFanController::RelayFanController(uint8_t pin, uint8_t pwmChannel)
 
 void RelayFanController::begin()
 {
+    // 高频脉宽调制可将风扇控制频率避开可闻范围。
     pinMode(pin_, OUTPUT);
     ledcSetup(pwmChannel_, 25000, 8);
     ledcAttachPin(pin_, pwmChannel_);
@@ -34,6 +35,7 @@ void RelayFanController::setMode(FanMode mode)
 
 void RelayFanController::setSpeedPercent(uint8_t speedPercent)
 {
+    // 将百分比限幅并映射到 8 位占空比。
     speedPercent_ = constrain(speedPercent, 0, 100);
     const uint8_t duty = static_cast<uint8_t>(map(speedPercent_, 0, 100, 0, 255));
     ledcWrite(pwmChannel_, duty);
@@ -81,6 +83,7 @@ void DualCurtainController::begin()
 
 void DualCurtainController::setAngle(uint8_t angle)
 {
+    // 第二路舵机镜像动作，保证双侧窗帘同步。
     currentAngle_ = constrain(angle, 0, 180);
     servoA_.write(currentAngle_);
     servoB_.write(180 - currentAngle_);
@@ -108,6 +111,7 @@ void BuzzerController::begin()
 
 void BuzzerController::beep(uint16_t frequency, uint16_t durationMs)
 {
+    // 简单阻塞式鸣叫，用于安全告警场景。
     ledcWriteTone(pwmChannel_, frequency);
     delay(durationMs);
     ledcWriteTone(pwmChannel_, 0);
@@ -134,6 +138,7 @@ void IRController::begin(Stream &serial)
 
 bool IRController::sendProtocol(const String &protocol, uint32_t address, uint32_t command, uint8_t repeats)
 {
+    // 构造桥接模块可识别的结构化命令行。
     const String payload = String("{\"device\":\"ir\",\"action\":\"send\",\"protocol\":\"") + protocol +
                            "\",\"address\":" + String(address) +
                            ",\"command\":" + String(command) +
@@ -160,6 +165,7 @@ IRDecodedSignal IRController::receive()
         return result;
     }
 
+    // 桥接模块按行返回结构化消息帧。
     result.payload = serial_->readStringUntil('\n');
     result.payload.trim();
     result.available = result.payload.length() > 0;
@@ -183,6 +189,7 @@ bool IRController::sendLine(const String &line)
         return false;
     }
 
+    // 缓存最近命令，便于诊断与状态展示。
     serial_->println(line);
     lastCommand_ = line;
     return true;

@@ -12,6 +12,7 @@ ControllerCommandProcessor::ControllerCommandProcessor(RelayFanController &fan,
 
 void ControllerCommandProcessor::begin(Stream &irBridgeSerial)
 {
+    // 接受命令前先初始化全部执行器后端。
     fan_.begin();
     curtain_.begin();
     buzzer_.begin();
@@ -24,6 +25,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
     CommandResult result;
     result.type = sourceType(source);
 
+    // 解析传入的结构化命令载荷。
     JsonDocument doc;
     const DeserializationError err = deserializeJson(doc, jsonText);
     if (err)
@@ -33,6 +35,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
         return result;
     }
 
+    // 所有命令都必须指定已知设备域。
     const String device = doc["device"] | "";
     if (device.length() == 0)
     {
@@ -43,6 +46,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
     if (device == "fan")
     {
+        // 风扇支持“档位控制”或“速度百分比控制”。
         bool handled = false;
         const String mode = doc["mode"] | "";
         if (mode.length() > 0)
@@ -93,6 +97,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
     if (device == "curtain")
     {
+        // 窗帘支持角度直设与预设档位。
         bool handled = false;
 
         if (!doc["angle"].isNull())
@@ -122,6 +127,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
     if (device == "ir")
     {
+        // 红外域支持协议发送、原始结构化发送、动作发送。
         const String action = doc["action"] | "";
         bool ok = false;
 
@@ -154,6 +160,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
             return result;
         }
 
+        // 红外发送后刷新状态快照，保持状态一致。
         refreshState();
         result.accepted = ok;
         result.stateChanged = ok;
@@ -188,6 +195,7 @@ void ControllerCommandProcessor::setCurtainAngle(uint8_t angle)
 
 void ControllerCommandProcessor::setCurtainPreset(uint8_t preset)
 {
+    // 记录预设索引用于状态上报，并下发给窗帘控制器。
     state_.lastCurtainPreset = constrain(preset, 0, 4);
     state_.hasCurtainPreset = true;
     curtain_.setPresetLevel(state_.lastCurtainPreset);
@@ -206,6 +214,7 @@ void ControllerCommandProcessor::playFireAlarmPattern()
 
 bool ControllerCommandProcessor::pollIrBridgeMessage(String &payload)
 {
+    // 如有可读数据则轮询一条红外解码消息。
     const IRDecodedSignal signal = ir_.receive();
     if (!signal.available)
     {
@@ -223,6 +232,7 @@ const ControllerState &ControllerCommandProcessor::state() const
 
 void ControllerCommandProcessor::refreshState()
 {
+    // 重建对外状态，供页面与控制接口使用。
     state_.fanMode = fan_.mode();
     state_.fanSpeedPercent = fan_.speedPercent();
     state_.curtainAngle = curtain_.angle();

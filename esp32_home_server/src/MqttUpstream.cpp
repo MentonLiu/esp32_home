@@ -2,6 +2,7 @@
 
 namespace
 {
+    // 集中管理云端服务地址与主题字面量。
     constexpr mqtt_upstream::CloudConfig kCloudConfig = {
         "example.mosquitto.server",
         1883,
@@ -13,10 +14,11 @@ namespace
     constexpr const char *kStatusTopic = "esp32/home/status";
     constexpr const char *kAlarmTopic = "esp32/home/alarm";
     constexpr const char *kControlTopic = "esp32/home/control";
-} // namespace
+} // 命名空间
 
 namespace mqtt_upstream
 {
+    // 返回引用可避免配置结构体拷贝。
     const CloudConfig &cloudConfig()
     {
         return kCloudConfig;
@@ -41,4 +43,4 @@ namespace mqtt_upstream
     {
         return kControlTopic;
     }
-} // namespace mqtt_upstream
+} // 命名空间结束

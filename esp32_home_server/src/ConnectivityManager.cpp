@@ -18,6 +18,7 @@ ConnectivityManager::ConnectivityManager(const char *stationSsid,
 
 void ConnectivityManager::begin()
 {
+    // 先以联网模式启动，并开启自动重连。
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true);
     mqttClient_.setCallback(ConnectivityManager::handleMqttDispatch);
@@ -28,8 +29,10 @@ void ConnectivityManager::begin()
 
 void ConnectivityManager::loop()
 {
+    // 每轮循环都处理本地网页请求。
     server_.handleClient();
 
+    // 云端消息通道仅在云模式下工作。
     if (mode_ == OperatingMode::Cloud)
     {
         ensureMqttConnected();
@@ -40,6 +43,7 @@ void ConnectivityManager::loop()
         mqttClient_.disconnect();
     }
 
+    // 定期重评模式，尝试恢复联网链路。
     if (millis() - lastModeCheckMs_ >= 30000)
     {
         lastModeCheckMs_ = millis();
@@ -54,6 +58,7 @@ void ConnectivityManager::configureCloudMqtt(const char *host,
                                              const char *password,
                                              const char *controlTopic)
 {
+    // 保存云端参数；实际连接在循环中延迟重试。
     mqttHost_ = host;
     mqttPort_ = port;
     mqttClientId_ = clientId;
@@ -73,6 +78,7 @@ void ConnectivityManager::setMqttHandler(MqttHandler handler)
 
 bool ConnectivityManager::mqttPublish(const char *topic, const String &payload)
 {
+    // 发布前先确保连接可用。
     if (!ensureMqttConnected())
     {
         return false;
@@ -113,6 +119,7 @@ WebServer &ConnectivityManager::webServer()
 
 void ConnectivityManager::handleMqttDispatch(char *topic, uint8_t *payload, unsigned int length)
 {
+    // 静态回调转发到实例处理器。
     if (instance_ != nullptr && instance_->mqttHandler_)
     {
         instance_->mqttHandler_(topic, payload, length);
@@ -121,6 +128,7 @@ void ConnectivityManager::handleMqttDispatch(char *topic, uint8_t *payload, unsi
 
 void ConnectivityManager::connectStation(bool longWait)
 {
+    // 未配置联网凭据时直接返回。
     if (stationSsid_ == nullptr || strlen(stationSsid_) == 0)
     {
         return;
@@ -131,6 +139,7 @@ void ConnectivityManager::connectStation(bool longWait)
         return;
     }
 
+    // 热点与联网并行模式下重连联网时保持热点在线。
     WiFi.mode(apStarted_ ? WIFI_AP_STA : WIFI_STA);
     WiFi.begin(stationSsid_, stationPassword_);
 
@@ -144,11 +153,13 @@ void ConnectivityManager::connectStation(bool longWait)
 
 void ConnectivityManager::evaluateMode()
 {
+    // 在决定回退模式前先尝试恢复联网。
     if (!isInternetConnected())
     {
         connectStation(false);
     }
 
+    // 联网成功则进入云模式。
     if (isInternetConnected())
     {
         stopLocalAp();
@@ -156,6 +167,7 @@ void ConnectivityManager::evaluateMode()
         return;
     }
 
+    // 否则开启本地热点供离线控制。
     startLocalAp();
     mode_ = OperatingMode::LocalAP;
 }
@@ -186,6 +198,7 @@ void ConnectivityManager::stopLocalAp()
 
 bool ConnectivityManager::ensureMqttConnected()
 {
+    // 仅在云模式且配置完成时才尝试消息连接。
     if (mode_ != OperatingMode::Cloud || !isMqttConfigured())
     {
         return false;
@@ -196,6 +209,7 @@ bool ConnectivityManager::ensureMqttConnected()
         return true;
     }
 
+    // 限制重连频率，避免紧密重试循环。
     if (millis() - lastMqttRetryMs_ < 5000)
     {
         return false;
@@ -212,6 +226,7 @@ bool ConnectivityManager::ensureMqttConnected()
         connected = mqttClient_.connect(mqttClientId_);
     }
 
+    // 连接成功后订阅控制主题。
     if (connected && mqttControlTopic_ != nullptr)
     {
         mqttClient_.subscribe(mqttControlTopic_);

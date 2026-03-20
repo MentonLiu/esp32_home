@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <DHT.h>
 
+// 从物理传感器采样得到的原始快照。
 struct SensorSnapshot
 {
     float temperatureC = 0.0F;
@@ -17,6 +18,7 @@ struct SensorSnapshot
     unsigned long timestamp = 0;
 };
 
+// 温湿度传感器封装，提供统一读取接口。
 class DhtSensor
 {
 public:
@@ -29,6 +31,7 @@ private:
     DHT dht_;
 };
 
+// 通用模数采样传感器，读数映射为百分比。
 class AnalogPercentSensor
 {
 public:
@@ -43,6 +46,7 @@ private:
     uint16_t adcMax_;
 };
 
+// 聚合所有传感器，并提供按间隔轮询能力。
 class SensorHub
 {
 public:
@@ -57,6 +61,7 @@ public:
     const SensorSnapshot &latest() const;
 
 private:
+    // 将烟雾传感百分比转换为颜色分级。
     String smokeLevelFromPercent(uint8_t percent) const;
 
     DhtSensor dht_;
