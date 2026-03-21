@@ -1,3 +1,6 @@
+// 文件说明：esp32_home_server/src/SensorDataProcessor.cpp
+// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+
 #include "SensorDataProcessor.h"
 
 #include <ArduinoJson.h>
@@ -11,7 +14,6 @@ void SensorDataProcessor::begin()
 
 bool SensorDataProcessor::loop()
 {
-    // 轮询间隔未到时跳过本轮处理。
     if (!sensorHub_.poll())
     {
         return false;
@@ -24,13 +26,11 @@ bool SensorDataProcessor::loop()
 
 bool SensorDataProcessor::shouldPublish(unsigned long intervalMs)
 {
-    // 仅在有新鲜样本时允许发布。
     if (!hasFreshSample_)
     {
         return false;
     }
 
-    // 强制最小发布间隔。
     if (millis() - lastPublishMs_ < intervalMs)
     {
         return false;
@@ -48,7 +48,6 @@ const StandardSensorData &SensorDataProcessor::latest() const
 
 String SensorDataProcessor::buildSensorJson() const
 {
-    // 紧凑的上行传感器载荷。
     JsonDocument doc;
     doc["sensorType"] = "home_snapshot";
     doc["timestamp"] = latest_.timestamp;
@@ -68,20 +67,44 @@ String SensorDataProcessor::buildSensorJson() const
 
 String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip, const ControllerState &controllerState) const
 {
-    // 面向本地页面的状态载荷（含执行器状态）。
     JsonDocument doc;
     doc["mode"] = modeToString(mode);
     doc["ip"] = ip;
+    doc["sensorTimestamp"] = latest_.timestamp;
     doc["temperatureC"] = latest_.temperatureC;
     doc["humidityPercent"] = latest_.humidityPercent;
     doc["lightPercent"] = latest_.lightPercent;
     doc["mq2Percent"] = latest_.mq2Percent;
     doc["smokeLevel"] = latest_.smokeLevel;
     doc["flameDetected"] = latest_.flameDetected;
+    doc["fanMode"] = fanModeToString(controllerState.fanMode);
+    doc["fanPowerOn"] = controllerState.fanPowerOn;
     doc["fanSpeedPercent"] = controllerState.fanSpeedPercent;
     doc["curtainAngle"] = controllerState.curtainAngle;
     doc["error"] = latest_.hasError;
     doc["errorMessage"] = latest_.errorMessage;
+
+    JsonObject sensor = doc["sensor"].to<JsonObject>();
+    sensor["temperatureC"] = latest_.temperatureC;
+    sensor["humidityPercent"] = latest_.humidityPercent;
+    sensor["lightPercent"] = latest_.lightPercent;
+    sensor["mq2Percent"] = latest_.mq2Percent;
+    sensor["smokeLevel"] = latest_.smokeLevel;
+    sensor["flameDetected"] = latest_.flameDetected;
+    sensor["timestamp"] = latest_.timestamp;
+    sensor["error"] = latest_.hasError;
+    sensor["errorMessage"] = latest_.errorMessage;
+
+    JsonObject controller = doc["controller"].to<JsonObject>();
+    controller["fanMode"] = fanModeToString(controllerState.fanMode);
+    controller["fanPowerOn"] = controllerState.fanPowerOn;
+    controller["fanSpeedPercent"] = controllerState.fanSpeedPercent;
+    controller["curtainAngle"] = controllerState.curtainAngle;
+    if (controllerState.hasCurtainPreset)
+    {
+        controller["curtainPreset"] = controllerState.lastCurtainPreset;
+    }
+    controller["lastIrCommand"] = controllerState.lastIrCommand;
 
     String payload;
     serializeJson(doc, payload);
@@ -90,7 +113,6 @@ String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip
 
 void SensorDataProcessor::normalize(const SensorSnapshot &snapshot)
 {
-    // 保持一份标准化副本供自动化与控制接口共享。
     latest_.temperatureC = snapshot.temperatureC;
     latest_.humidityPercent = snapshot.humidityPercent;
     latest_.lightPercent = snapshot.lightPercent;

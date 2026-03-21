@@ -1,3 +1,6 @@
+// 文件说明：esp32_home_server/include/LocalProcessingProgram.h
+// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+
 #ifndef LOCAL_PROCESSING_PROGRAM_H
 #define LOCAL_PROCESSING_PROGRAM_H
 
@@ -8,7 +11,6 @@
 #include "SensorDataProcessor.h"
 #include "SystemContracts.h"
 
-// 本地热点模式下的网页应用宿主与接口路由器。
 class LocalProcessingProgram
 {
 public:
@@ -20,9 +22,7 @@ public:
     void begin();
 
 private:
-    // 注册静态页面与控制端点。
     void setupRoutes();
-    // 从本地文件系统流式输出单个文件到网页响应。
     bool serveFile(const char *path, const char *contentType);
 
     ConnectivityManager &net_;

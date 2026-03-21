@@ -1,17 +1,18 @@
+// 文件说明：esp32_home_server/include/SystemContracts.h
+// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+
 #ifndef SYSTEM_CONTRACTS_H
 #define SYSTEM_CONTRACTS_H
 
 #include <Arduino.h>
 #include <functional>
 
-// 运行模式由网络可用性决定。
 enum class OperatingMode : uint8_t
 {
     Cloud = 0,
     LocalAP = 1
 };
 
-// 控制命令来源。
 enum class CommandSource : uint8_t
 {
     LocalWeb = 0,
@@ -19,7 +20,6 @@ enum class CommandSource : uint8_t
     Automation = 2
 };
 
-// 风扇逻辑档位。
 enum class FanMode : uint8_t
 {
     Off = 0,
@@ -28,7 +28,6 @@ enum class FanMode : uint8_t
     High = 3
 };
 
-// 各模块统一使用的标准化传感器数据。
 struct StandardSensorData
 {
     float temperatureC = 0.0F;
@@ -42,10 +41,10 @@ struct StandardSensorData
     unsigned long timestamp = 0;
 };
 
-// 可控设备的统一状态快照。
 struct ControllerState
 {
     FanMode fanMode = FanMode::Off;
+    bool fanPowerOn = false;
     uint8_t fanSpeedPercent = 0;
     uint8_t curtainAngle = 0;
     uint8_t lastCurtainPreset = 0;
@@ -53,7 +52,6 @@ struct ControllerState
     String lastIrCommand;
 };
 
-// 命令处理的统一结果结构。
 struct CommandResult
 {
     bool accepted = false;
@@ -62,7 +60,6 @@ struct CommandResult
     String message;
 };
 
-// 供各模块上报系统状态的回调函数。
 using StatusReporter = std::function<void(const char *topic, const String &type, const String &message)>;
 
 inline const char *modeToString(OperatingMode mode)

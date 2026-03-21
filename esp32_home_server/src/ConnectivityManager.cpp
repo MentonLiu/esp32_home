@@ -1,4 +1,9 @@
+// 文件说明：esp32_home_server/src/ConnectivityManager.cpp
+// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+
 #include "ConnectivityManager.h"
+
+#include <ESPmDNS.h>
 
 ConnectivityManager *ConnectivityManager::instance_ = nullptr;
 
@@ -112,6 +117,11 @@ String ConnectivityManager::ipString() const
     return localIp().toString();
 }
 
+String ConnectivityManager::hostName() const
+{
+    return "esp32-home-server.local";
+}
+
 WebServer &ConnectivityManager::webServer()
 {
     return server_;
@@ -164,12 +174,14 @@ void ConnectivityManager::evaluateMode()
     {
         stopLocalAp();
         mode_ = OperatingMode::Cloud;
+        ensureMdnsState();
         return;
     }
 
     // 否则开启本地热点供离线控制。
     startLocalAp();
     mode_ = OperatingMode::LocalAP;
+    ensureMdnsState();
 }
 
 void ConnectivityManager::startLocalAp()
@@ -194,6 +206,25 @@ void ConnectivityManager::stopLocalAp()
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_STA);
     apStarted_ = false;
+}
+
+void ConnectivityManager::ensureMdnsState()
+{
+    if (mode_ == OperatingMode::Cloud && isInternetConnected())
+    {
+        if (!mdnsStarted_ && MDNS.begin("esp32-home-server"))
+        {
+            MDNS.addService("http", "tcp", 80);
+            mdnsStarted_ = true;
+        }
+        return;
+    }
+
+    if (mdnsStarted_)
+    {
+        MDNS.end();
+        mdnsStarted_ = false;
+    }
 }
 
 bool ConnectivityManager::ensureMqttConnected()

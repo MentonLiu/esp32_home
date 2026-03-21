@@ -1,0 +1,141 @@
+<!-- 文件说明：仓库项目结构与关系展示页面。 -->
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ESP32 Home 仓库结构说明</title>
+    <style>
+        :root {
+            --bg: #f4f2ec;
+            --panel: rgba(255, 255, 255, 0.94);
+            --ink: #1d2929;
+            --muted: #5f6f70;
+            --line: rgba(26, 42, 42, 0.12);
+            --server: #0e6b73;
+            --client: #7a5600;
+            --shared: #93405c;
+            --hold: #50608c;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 10% 10%, rgba(14, 107, 115, 0.12), transparent 26%),
+                radial-gradient(circle at 90% 0%, rgba(147, 64, 92, 0.10), transparent 28%),
+                linear-gradient(160deg, #f7f3ea, #eef3f6 58%, #f7efef);
+        }
+
+        .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+        .hero, .section {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            padding: 22px;
+            box-shadow: 0 14px 34px rgba(22, 32, 32, 0.08);
+        }
+        .section { margin-top: 16px; }
+        h1, h2 { margin: 0; }
+        .sub { margin: 10px 0 0; color: var(--muted); line-height: 1.7; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 16px; }
+        .card { border-radius: 18px; border: 1px solid var(--line); padding: 14px; background: rgba(255, 255, 255, 0.86); }
+        .tag { display: inline-block; padding: 5px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; color: #fff; margin-bottom: 10px; }
+        .server { background: var(--server); }
+        .client { background: var(--client); }
+        .shared { background: var(--shared); }
+        .hold { background: var(--hold); }
+        .card p, .card li { margin: 0; line-height: 1.68; color: #344545; font-size: 0.94rem; }
+        .diagram { overflow-x: auto; margin-top: 16px; padding: 14px; border: 1px dashed var(--line); border-radius: 18px; background: rgba(249, 251, 252, 0.92); }
+        .relation {
+            margin-top: 16px;
+            border: 1px dashed var(--line);
+            border-radius: 18px;
+            padding: 14px;
+            background: rgba(249, 251, 252, 0.92);
+        }
+        .flow {
+            display: grid;
+            gap: 12px;
+        }
+        .node {
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            padding: 12px;
+            background: #fff;
+            line-height: 1.65;
+            font-size: 0.92rem;
+            color: #2d3d3d;
+        }
+        .root { background: #edf6f7; }
+        .conn {
+            text-align: center;
+            color: #5b6a6b;
+            font-size: 0.9rem;
+            letter-spacing: 0.04em;
+        }
+        .cols {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+        .timeline { display: grid; gap: 10px; margin-top: 14px; }
+        .step { border-left: 4px solid var(--shared); padding: 10px 12px; background: rgba(255, 248, 251, 0.92); border-radius: 0 14px 14px 0; line-height: 1.66; }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <section class="hero">
+            <h1>ESP32 Home 仓库结构说明</h1>
+            <p class="sub">当前仓库围绕“服务端主控 + 局域网客户端面板 + 文档中心”来组织。服务端负责采集、网页、自动化和串口红外桥接；客户端负责按钮、旋钮、RGB 指示灯和 HTTP 控制；共享文档只保留已定方案，未定的 LVGL 画面和 MQTT 细节先挂起。</p>
+        </section>
+
+        <section class="section">
+            <h2>子项目分工</h2>
+            <div class="grid">
+                <article class="card"><span class="tag server">服务端</span><p><code>esp32_home_server/</code> 负责传感器采样、自动化、网页 API、风扇/窗帘执行和串口红外桥接。</p></article>
+                <article class="card"><span class="tag client">客户端</span><p><code>esp32_home_client/</code> 负责按键、旋钮、RGB、LCD1602，以及通过 HTTP 控制服务端。</p></article>
+                <article class="card"><span class="tag shared">文档</span><p><code>doc/</code> 是统一文档中心。协议、需求和结构图都优先写在这里，不再在子项目里散落副本。</p></article>
+                <article class="card"><span class="tag hold">暂缓项</span><p>LVGL 8pin 显示界面尚未定稿，因此先屏蔽相关显示实现；MQTT 也仅保留占位接口，不作为当前联调主链路。</p></article>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>项目结构关系图</h2>
+            <p class="sub">下图按“仓库根目录 -> 核心子项目 -> 运行关系”展示当前工程结构，便于新成员快速定位开发入口与联调链路。</p>
+            <div class="relation">
+                <div class="flow">
+                    <div class="node root"><strong>esp32_home/（仓库根）</strong><br />统一管理服务端固件、客户端固件、红外实验工程与文档。</div>
+                    <div class="conn">▼ 子项目拆分</div>
+                    <div class="cols">
+                        <div class="node"><strong>esp32_home_server/</strong><br />主控服务端：传感器采样、自动化引擎、本地 Web API、串口红外桥接。</div>
+                        <div class="node"><strong>esp32_home_client/</strong><br />控制面板端：按键/旋钮输入、RGB/LCD 输出、通过 HTTP 调服务端控制接口。</div>
+                        <div class="node"><strong>doc/</strong><br />项目文档中心：需求、流程、架构、协议说明统一沉淀。</div>
+                    </div>
+                    <div class="conn">▼ 运行时交互</div>
+                    <div class="cols">
+                        <div class="node">客户端 → 服务端：HTTP <code>/api/status</code> 拉取状态，<code>/api/control</code> 下发控制。</div>
+                        <div class="node">服务端 → ESP8266 红外板：串口发送文本命令，ESP8266 负责协议解释与红外发射。</div>
+                        <div class="node">服务端 ↔ 浏览器：通过 <code>web/index.html</code> 提供本地可视化与调试入口。</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>当前约定</h2>
+            <div class="timeline">
+                <div class="step">服务端联网 Wi-Fi 已固定为 <code>iPadmini</code> / <code>lbl450981</code>。离线时仍回退到热点 <code>esp32-server</code> / <code>lbl450981</code>。</div>
+                <div class="step">客户端主链路只走 HTTP，不依赖 MQTT。MQTT 当前只保留占位代码与说明，后续单独设计再恢复。</div>
+                <div class="step">红外控制简化为字符串命令。服务端只负责向 ESP8266 发字符串，由 ESP8266 自己解释协议与动作。</div>
+                <div class="step">8pin TFT 以后会改成 LVGL 界面，但目前界面尚未设计，因此显示逻辑先屏蔽，不让未定 UI 反向污染协议和固件结构。</div>
+            </div>
+        </section>
+    </div>
+</body>
+
+</html>

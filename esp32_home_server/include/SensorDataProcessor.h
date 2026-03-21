@@ -1,3 +1,6 @@
+// 文件说明：esp32_home_server/include/SensorDataProcessor.h
+// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+
 #ifndef SENSOR_DATA_PROCESSOR_H
 #define SENSOR_DATA_PROCESSOR_H
 
@@ -6,7 +9,6 @@
 #include "Sensor.h"
 #include "SystemContracts.h"
 
-// 将原始传感器快照转换为标准数据与结构化文本视图。
 class SensorDataProcessor
 {
 public:
@@ -14,7 +16,6 @@ public:
 
     void begin();
     bool loop();
-    // 发布节流门控：降低上行频率并强制最小间隔。
     bool shouldPublish(unsigned long intervalMs = 500);
 
     const StandardSensorData &latest() const;
@@ -22,7 +23,6 @@ public:
     String buildStatusJson(OperatingMode mode, const String &ip, const ControllerState &controllerState) const;
 
 private:
-    // 将原始快照复制并规范化到标准契约结构。
     void normalize(const SensorSnapshot &snapshot);
 
     SensorHub &sensorHub_;

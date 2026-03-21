@@ -1,3 +1,6 @@
+// 文件说明：esp32_home_server/include/AutomationEngine.h
+// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+
 #ifndef AUTOMATION_ENGINE_H
 #define AUTOMATION_ENGINE_H
 
@@ -8,7 +11,6 @@
 #include "ControllerCommandProcessor.h"
 #include "SystemContracts.h"
 
-// 自动化策略引擎：处理定时与安全事件触发逻辑。
 class AutomationEngine
 {
 public:
@@ -20,17 +22,11 @@ public:
     void loop(const StandardSensorData &sensorData);
 
 private:
-    // 网络可用后启用网络授时。
     void ensureTimeSource();
-    // 通过网络授时对实时时钟进行一次性校时。
     void syncRtcFromNtp();
-    // 返回当前最可靠的本地时间。
     DateTime currentTime();
-    // 处理窗帘定时开合。
     void handleCurtainSchedule(const DateTime &now);
-    // 烟雾相关的风扇和蜂鸣器策略。
     void handleSmokeAutomation(const StandardSensorData &sensorData);
-    // 火焰持续时长升级与云端告警策略。
     void handleFlameAutomation(const StandardSensorData &sensorData);
     void publishStatus(const char *topic, const String &type, const String &message) const;
 
@@ -45,7 +41,6 @@ private:
     DateTime fallbackBaseTime_;
     unsigned long fallbackBaseMillis_ = 0;
 
-    // 内部计时与去重状态。
     unsigned long lastScheduleCheckMs_ = 0;
     unsigned long flameDetectedSinceMs_ = 0;
     unsigned long lastHighSmokeBeepMs_ = 0;

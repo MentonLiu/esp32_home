@@ -1,0 +1,31 @@
+# Server `include/`
+
+这个目录保存服务端所有公共头文件，当前主要分为以下几类：
+
+- `pins.h`
+  服务端硬件引脚定义。
+- `SystemContracts.h`
+  服务端内部共享的数据结构与枚举。
+- `Sensor.h`
+  传感器采样接口。
+- `Controllerr.h`
+  风扇、窗帘、蜂鸣器、红外桥接接口。
+- `SensorDataProcessor.h`
+  原始采样到状态载荷的标准化层。
+- `ControllerCommandProcessor.h`
+  网页、客户端、自动化三方共用的命令入口。
+- `ConnectivityManager.h`
+  Wi-Fi、热点和占位 MQTT 管理。
+- `LocalProcessingProgram.h`
+  本地网页和 HTTP 接口路由。
+- `AutomationEngine.h`
+  自动化规则与告警逻辑。
+- `CentralProcessor.h`
+  系统总装配与主循环调度。
+
+如果你要修改服务端协议，优先关注：
+
+1. `SystemContracts.h`
+2. `SensorDataProcessor.h`
+3. `ControllerCommandProcessor.h`
+4. `LocalProcessingProgram.h`

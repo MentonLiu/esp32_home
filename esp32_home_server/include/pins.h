@@ -1,3 +1,6 @@
+// 文件说明：esp32_home_server/include/pins.h
+// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+
 #ifndef PINS_H
 #define PINS_H
 

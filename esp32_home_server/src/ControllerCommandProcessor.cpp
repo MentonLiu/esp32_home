@@ -1,3 +1,6 @@
+// 文件说明：esp32_home_server/src/ControllerCommandProcessor.cpp
+// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+
 #include "ControllerCommandProcessor.h"
 
 #include <ArduinoJson.h>
@@ -12,11 +15,11 @@ ControllerCommandProcessor::ControllerCommandProcessor(RelayFanController &fan,
 
 void ControllerCommandProcessor::begin(Stream &irBridgeSerial)
 {
-    // 接受命令前先初始化全部执行器后端。
     fan_.begin();
     curtain_.begin();
     buzzer_.begin();
     ir_.begin(irBridgeSerial);
+    state_.fanPowerOn = false;
     refreshState();
 }
 
@@ -25,7 +28,6 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
     CommandResult result;
     result.type = sourceType(source);
 
-    // 解析传入的结构化命令载荷。
     JsonDocument doc;
     const DeserializationError err = deserializeJson(doc, jsonText);
     if (err)
@@ -35,7 +37,6 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
         return result;
     }
 
-    // 所有命令都必须指定已知设备域。
     const String device = doc["device"] | "";
     if (device.length() == 0)
     {
@@ -46,11 +47,38 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
     if (device == "fan")
     {
-        // 风扇支持“档位控制”或“速度百分比控制”。
         bool handled = false;
+
+        const String power = doc["power"] | "";
+        if (power.length() > 0)
+        {
+            if (power == "on")
+            {
+                setFanPower(true);
+            }
+            else if (power == "off")
+            {
+                setFanPower(false);
+            }
+            else
+            {
+                result.type = "error";
+                result.message = "fan_power_invalid";
+                return result;
+            }
+            handled = true;
+        }
+
         const String mode = doc["mode"] | "";
         if (mode.length() > 0)
         {
+            if (!isFanPowerOn() && mode != "off")
+            {
+                result.type = "error";
+                result.message = "fan_power_off";
+                return result;
+            }
+
             if (mode == "off")
             {
                 setFanMode(FanMode::Off);
@@ -78,6 +106,13 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
         if (!doc["speedPercent"].isNull())
         {
+            if (!isFanPowerOn())
+            {
+                result.type = "error";
+                result.message = "fan_power_off";
+                return result;
+            }
+
             setFanSpeedPercent(doc["speedPercent"].as<uint8_t>());
             handled = true;
         }
@@ -97,7 +132,6 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
     if (device == "curtain")
     {
-        // 窗帘支持角度直设与预设档位。
         bool handled = false;
 
         if (!doc["angle"].isNull())
@@ -127,40 +161,15 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
     if (device == "ir")
     {
-        // 红外域支持协议发送、原始结构化发送、动作发送。
-        const String action = doc["action"] | "";
-        bool ok = false;
-
-        if (action == "send")
-        {
-            ok = ir_.sendProtocol(doc["protocol"] | "NEC",
-                                  doc["address"] | 0,
-                                  doc["command"] | 0,
-                                  doc["repeats"] | 0);
-        }
-        else if (action == "send_json")
-        {
-            const String commandJson = doc["commandJson"] | "";
-            ok = commandJson.length() > 0 && ir_.sendJson(commandJson);
-        }
-        else if (action.length() > 0)
-        {
-            String argsJson = "{}";
-            if (!doc["args"].isNull())
-            {
-                argsJson = "";
-                serializeJson(doc["args"], argsJson);
-            }
-            ok = ir_.sendAction(action, argsJson);
-        }
-        else
+        const String command = doc["command"] | "";
+        if (command.length() == 0)
         {
             result.type = "error";
-            result.message = "ir_action_missing";
+            result.message = "ir_command_missing";
             return result;
         }
 
-        // 红外发送后刷新状态快照，保持状态一致。
+        const bool ok = ir_.sendTextCommand(command);
         refreshState();
         result.accepted = ok;
         result.stateChanged = ok;
@@ -174,14 +183,43 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
     return result;
 }
 
+void ControllerCommandProcessor::setFanPower(bool powerOn)
+{
+    state_.fanPowerOn = powerOn;
+    if (!powerOn)
+    {
+        fan_.setSpeedPercent(0);
+    }
+    else if (fan_.speedPercent() == 0)
+    {
+        fan_.setMode(FanMode::Low);
+    }
+    refreshState();
+}
+
+bool ControllerCommandProcessor::isFanPowerOn() const
+{
+    return state_.fanPowerOn;
+}
+
 void ControllerCommandProcessor::setFanMode(FanMode mode)
 {
+    if (mode == FanMode::Off)
+    {
+        state_.fanPowerOn = false;
+        fan_.setMode(FanMode::Off);
+        refreshState();
+        return;
+    }
+
+    state_.fanPowerOn = true;
     fan_.setMode(mode);
     refreshState();
 }
 
 void ControllerCommandProcessor::setFanSpeedPercent(uint8_t speedPercent)
 {
+    state_.fanPowerOn = true;
     fan_.setSpeedPercent(speedPercent);
     refreshState();
 }
@@ -195,7 +233,6 @@ void ControllerCommandProcessor::setCurtainAngle(uint8_t angle)
 
 void ControllerCommandProcessor::setCurtainPreset(uint8_t preset)
 {
-    // 记录预设索引用于状态上报，并下发给窗帘控制器。
     state_.lastCurtainPreset = constrain(preset, 0, 4);
     state_.hasCurtainPreset = true;
     curtain_.setPresetLevel(state_.lastCurtainPreset);
@@ -214,7 +251,6 @@ void ControllerCommandProcessor::playFireAlarmPattern()
 
 bool ControllerCommandProcessor::pollIrBridgeMessage(String &payload)
 {
-    // 如有可读数据则轮询一条红外解码消息。
     const IRDecodedSignal signal = ir_.receive();
     if (!signal.available)
     {
@@ -232,7 +268,6 @@ const ControllerState &ControllerCommandProcessor::state() const
 
 void ControllerCommandProcessor::refreshState()
 {
-    // 重建对外状态，供页面与控制接口使用。
     state_.fanMode = fan_.mode();
     state_.fanSpeedPercent = fan_.speedPercent();
     state_.curtainAngle = curtain_.angle();

@@ -1,3 +1,6 @@
+// 文件说明：esp32_home_server/src/LocalProcessingProgram.cpp
+// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+
 #include "LocalProcessingProgram.h"
 
 #include <ArduinoJson.h>
@@ -18,7 +21,6 @@ LocalProcessingProgram::LocalProcessingProgram(ConnectivityManager &net,
 
 void LocalProcessingProgram::begin()
 {
-    // 挂载本地文件系统；即使失败也继续运行（控制接口仍可用）。
     fsReady_ = LittleFS.begin(true);
     setupRoutes();
     net_.webServer().begin();
@@ -26,7 +28,6 @@ void LocalProcessingProgram::begin()
 
 void LocalProcessingProgram::setupRoutes()
 {
-    // 主控制面板页面。
     net_.webServer().on("/", HTTP_GET, [this]()
                         {
         if (!serveFile("/index.html", "text/html; charset=utf-8"))
@@ -34,15 +35,6 @@ void LocalProcessingProgram::setupRoutes()
             net_.webServer().send(503, "text/plain", "index.html unavailable");
         } });
 
-    // 项目架构说明页面。
-    net_.webServer().on("/project-map", HTTP_GET, [this]()
-                        {
-        if (!serveFile("/project-map.html", "text/html; charset=utf-8"))
-        {
-            net_.webServer().send(503, "text/plain", "project-map.html unavailable");
-        } });
-
-    // 本地页面轮询的运行状态接口。
     net_.webServer().on("/api/status", HTTP_GET, [this]()
                         { net_.webServer().send(200,
                                                 "application/json",
@@ -50,7 +42,6 @@ void LocalProcessingProgram::setupRoutes()
                                                                                      net_.ipString(),
                                                                                      commandProcessor_.state())); });
 
-    // 本地控制接口：将载荷转发给统一命令处理器。
     net_.webServer().on("/api/control", HTTP_POST, [this]()
                         {
         const String requestBody = net_.webServer().arg("plain");
@@ -64,15 +55,18 @@ void LocalProcessingProgram::setupRoutes()
         }
 
         JsonDocument response;
-        response["ok"] = true;
+        response["ok"] = result.accepted;
+        response["stateChanged"] = result.stateChanged;
+        response["type"] = result.type;
+        response["message"] = result.message;
+
         String payload;
         serializeJson(response, payload);
-        net_.webServer().send(200, "application/json", payload); });
+        net_.webServer().send(result.accepted ? 200 : 400, "application/json", payload); });
 }
 
 bool LocalProcessingProgram::serveFile(const char *path, const char *contentType)
 {
-    // 仅在文件系统可用时提供静态资源。
     if (!fsReady_)
     {
         return false;

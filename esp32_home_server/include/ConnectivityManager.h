@@ -1,3 +1,6 @@
+// 文件说明：esp32_home_server/include/ConnectivityManager.h
+// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+
 #ifndef CONNECTIVITY_MANAGER_H
 #define CONNECTIVITY_MANAGER_H
 
@@ -37,6 +40,7 @@ public:
     OperatingMode mode() const;
     IPAddress localIp() const;
     String ipString() const;
+    String hostName() const;
     // 暴露网页服务器对象，供本地程序注册路由。
     WebServer &webServer();
 
@@ -48,6 +52,7 @@ private:
     void evaluateMode();
     void startLocalAp();
     void stopLocalAp();
+    void ensureMdnsState();
     bool ensureMqttConnected();
     bool isMqttConfigured() const;
 
@@ -70,6 +75,7 @@ private:
 
     OperatingMode mode_ = OperatingMode::LocalAP;
     bool apStarted_ = false;
+    bool mdnsStarted_ = false;
     unsigned long lastModeCheckMs_ = 0;
     unsigned long lastMqttRetryMs_ = 0;
 
