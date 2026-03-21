@@ -1,6 +1,6 @@
 # ESP32 Home Server
 
-基于 ESP32-S3 + PlatformIO + Arduino 的智能家居服务端。当前实现已经按 [`doc/功能要求.md`](doc/%E5%8A%9F%E8%83%BD%E8%A6%81%E6%B1%82.md) 和 `/doc` 下的流程图、架构图重建，目标是同时提供：
+基于 ESP32-S3 + PlatformIO + Arduino 的智能家居服务端。当前实现已经按项目根目录中的 [`../doc/server/功能要求.md`](../doc/server/%E5%8A%9F%E8%83%BD%E8%A6%81%E6%B1%82.md) 与配套流程图、架构图重建，目标是同时提供：
 
 - 0.5 秒周期的环境传感器采集
 - 本地网页控制台与 HTTP 接口
@@ -12,11 +12,11 @@
 
 ### 架构图
 
-![项目架构图](doc/%E9%A1%B9%E7%9B%AE%E6%9E%B6%E6%9E%84.png)
+![项目架构图](../doc/server/%E9%A1%B9%E7%9B%AE%E6%9E%B6%E6%9E%84.png)
 
 ### 功能流程图
 
-![功能流程图](doc/%E5%8A%9F%E8%83%BD%E6%B5%81%E7%A8%8B.png)
+![功能流程图](../doc/server/%E5%8A%9F%E8%83%BD%E6%B5%81%E7%A8%8B.png)
 
 ## 当前目录结构
 
@@ -26,8 +26,8 @@
   固件实现，按“采集、控制、联网、页面、自动化、中央调度”拆分。
 - `web/`
   LittleFS 页面资源，包含主控制台和项目结构图页面。
-- `doc/`
-  需求文档、客户端对接文档、流程图和架构图。
+- `../doc/`
+  项目根目录统一文档中心，包含服务端、客户端和共享对接文档。
 - `platformio.ini`
   PlatformIO 构建配置。
 - `changes.md`
@@ -212,4 +212,4 @@ pio device monitor -b 115200
 
 - 将 `home-WiFi`、MQTT 域名、账号密码移到独立配置或 NVS。
 - 如果后续拿到真实接线图，可以继续微调 [`include/pins.h`](include/pins.h)。
-- 如果要对接第二块 ESP32 客户端，建议同时参考 [`doc/ESP32客户端对接文档.md`](doc/ESP32%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%AF%B9%E6%8E%A5%E6%96%87%E6%A1%A3.md)。
+- 如果要对接第二块 ESP32 客户端，建议同时参考 [`../doc/shared/ESP32客户端与MQTT上位机对接文档.md`](../doc/shared/ESP32%E5%AE%A2%E6%88%B7%E7%AB%AF%E4%B8%8EMQTT%E4%B8%8A%E4%BD%8D%E6%9C%BA%E5%AF%B9%E6%8E%A5%E6%96%87%E6%A1%A3.md)。
