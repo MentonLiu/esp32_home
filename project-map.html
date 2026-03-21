@@ -19,7 +19,10 @@
             --hold: #50608c;
         }
 
-        * { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -30,26 +33,93 @@
                 linear-gradient(160deg, #f7f3ea, #eef3f6 58%, #f7efef);
         }
 
-        .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
-        .hero, .section {
+        .wrap {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 24px 16px 48px;
+        }
+
+        .hero,
+        .section {
             background: var(--panel);
             border: 1px solid var(--line);
             border-radius: 24px;
             padding: 22px;
             box-shadow: 0 14px 34px rgba(22, 32, 32, 0.08);
         }
-        .section { margin-top: 16px; }
-        h1, h2 { margin: 0; }
-        .sub { margin: 10px 0 0; color: var(--muted); line-height: 1.7; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 16px; }
-        .card { border-radius: 18px; border: 1px solid var(--line); padding: 14px; background: rgba(255, 255, 255, 0.86); }
-        .tag { display: inline-block; padding: 5px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; color: #fff; margin-bottom: 10px; }
-        .server { background: var(--server); }
-        .client { background: var(--client); }
-        .shared { background: var(--shared); }
-        .hold { background: var(--hold); }
-        .card p, .card li { margin: 0; line-height: 1.68; color: #344545; font-size: 0.94rem; }
-        .diagram { overflow-x: auto; margin-top: 16px; padding: 14px; border: 1px dashed var(--line); border-radius: 18px; background: rgba(249, 251, 252, 0.92); }
+
+        .section {
+            margin-top: 16px;
+        }
+
+        h1,
+        h2 {
+            margin: 0;
+        }
+
+        .sub {
+            margin: 10px 0 0;
+            color: var(--muted);
+            line-height: 1.7;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .card {
+            border-radius: 18px;
+            border: 1px solid var(--line);
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.86);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+
+        .server {
+            background: var(--server);
+        }
+
+        .client {
+            background: var(--client);
+        }
+
+        .shared {
+            background: var(--shared);
+        }
+
+        .hold {
+            background: var(--hold);
+        }
+
+        .card p,
+        .card li {
+            margin: 0;
+            line-height: 1.68;
+            color: #344545;
+            font-size: 0.94rem;
+        }
+
+        .diagram {
+            overflow-x: auto;
+            margin-top: 16px;
+            padding: 14px;
+            border: 1px dashed var(--line);
+            border-radius: 18px;
+            background: rgba(249, 251, 252, 0.92);
+        }
+
         .relation {
             margin-top: 16px;
             border: 1px dashed var(--line);
@@ -57,10 +127,12 @@
             padding: 14px;
             background: rgba(249, 251, 252, 0.92);
         }
+
         .flow {
             display: grid;
             gap: 12px;
         }
+
         .node {
             border-radius: 14px;
             border: 1px solid var(--line);
@@ -70,20 +142,70 @@
             font-size: 0.92rem;
             color: #2d3d3d;
         }
-        .root { background: #edf6f7; }
+
+        .root {
+            background: #edf6f7;
+        }
+
         .conn {
             text-align: center;
             color: #5b6a6b;
             font-size: 0.9rem;
             letter-spacing: 0.04em;
         }
+
         .cols {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 12px;
         }
-        .timeline { display: grid; gap: 10px; margin-top: 14px; }
-        .step { border-left: 4px solid var(--shared); padding: 10px 12px; background: rgba(255, 248, 251, 0.92); border-radius: 0 14px 14px 0; line-height: 1.66; }
+
+        .timeline {
+            display: grid;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .topo {
+            margin-top: 16px;
+            padding: 14px;
+            border-radius: 18px;
+            border: 1px dashed var(--line);
+            background: rgba(249, 251, 252, 0.92);
+            overflow: hidden;
+        }
+
+        #topology-graph {
+            width: 100%;
+            height: 680px;
+            border-radius: 14px;
+            background:
+                radial-gradient(circle at 12% 18%, rgba(14, 107, 115, 0.08), transparent 26%),
+                radial-gradient(circle at 88% 12%, rgba(122, 86, 0, 0.09), transparent 30%),
+                linear-gradient(180deg, #fbfcfd, #f3f6f8);
+            border: 1px solid rgba(26, 42, 42, 0.11);
+        }
+
+        .graph-tip {
+            margin-top: 10px;
+            font-size: 0.86rem;
+            color: #4f6061;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 860px) {
+            #topology-graph {
+                height: 560px;
+            }
+        }
+
+        .step {
+            border-left: 4px solid var(--shared);
+            padding: 10px 12px;
+            background: rgba(255, 248, 251, 0.92);
+            border-radius: 0 14px 14px 0;
+            line-height: 1.66;
+        }
     </style>
 </head>
 
@@ -91,16 +213,25 @@
     <div class="wrap">
         <section class="hero">
             <h1>ESP32 Home 仓库结构说明</h1>
-            <p class="sub">当前仓库围绕“服务端主控 + 局域网客户端面板 + 文档中心”来组织。服务端负责采集、网页、自动化和串口红外桥接；客户端负责按钮、旋钮、RGB 指示灯和 HTTP 控制；共享文档只保留已定方案，未定的 LVGL 画面和 MQTT 细节先挂起。</p>
+            <p class="sub">当前仓库围绕“服务端主控 + 局域网客户端面板 + 文档中心”来组织。服务端负责采集、网页、自动化和串口红外桥接；客户端负责按钮、旋钮、RGB 指示灯和 HTTP
+                控制；共享文档只保留已定方案，未定的 LVGL 画面和 MQTT 细节先挂起。</p>
         </section>
 
         <section class="section">
             <h2>子项目分工</h2>
             <div class="grid">
-                <article class="card"><span class="tag server">服务端</span><p><code>esp32_home_server/</code> 负责传感器采样、自动化、网页 API、风扇/窗帘执行和串口红外桥接。</p></article>
-                <article class="card"><span class="tag client">客户端</span><p><code>esp32_home_client/</code> 负责按键、旋钮、RGB、LCD1602，以及通过 HTTP 控制服务端。</p></article>
-                <article class="card"><span class="tag shared">文档</span><p><code>doc/</code> 是统一文档中心。协议、需求和结构图都优先写在这里，不再在子项目里散落副本。</p></article>
-                <article class="card"><span class="tag hold">暂缓项</span><p>LVGL 8pin 显示界面尚未定稿，因此先屏蔽相关显示实现；MQTT 也仅保留占位接口，不作为当前联调主链路。</p></article>
+                <article class="card"><span class="tag server">服务端</span>
+                    <p><code>esp32_home_server/</code> 负责传感器采样、自动化、网页 API、风扇/窗帘执行和串口红外桥接。</p>
+                </article>
+                <article class="card"><span class="tag client">客户端</span>
+                    <p><code>esp32_home_client/</code> 负责按键、旋钮、RGB、LCD1602，以及通过 HTTP 控制服务端。</p>
+                </article>
+                <article class="card"><span class="tag shared">文档</span>
+                    <p><code>doc/</code> 是统一文档中心。协议、需求和结构图都优先写在这里，不再在子项目里散落副本。</p>
+                </article>
+                <article class="card"><span class="tag hold">暂缓项</span>
+                    <p>LVGL 8pin 显示界面尚未定稿，因此先屏蔽相关显示实现；MQTT 也仅保留占位接口，不作为当前联调主链路。</p>
+                </article>
             </div>
         </section>
 
@@ -112,13 +243,16 @@
                     <div class="node root"><strong>esp32_home/（仓库根）</strong><br />统一管理服务端固件、客户端固件、红外实验工程与文档。</div>
                     <div class="conn">▼ 子项目拆分</div>
                     <div class="cols">
-                        <div class="node"><strong>esp32_home_server/</strong><br />主控服务端：传感器采样、自动化引擎、本地 Web API、串口红外桥接。</div>
-                        <div class="node"><strong>esp32_home_client/</strong><br />控制面板端：按键/旋钮输入、RGB/LCD 输出、通过 HTTP 调服务端控制接口。</div>
+                        <div class="node"><strong>esp32_home_server/</strong><br />主控服务端：传感器采样、自动化引擎、本地 Web API、串口红外桥接。
+                        </div>
+                        <div class="node"><strong>esp32_home_client/</strong><br />控制面板端：按键/旋钮输入、RGB/LCD 输出、通过 HTTP
+                            调服务端控制接口。</div>
                         <div class="node"><strong>doc/</strong><br />项目文档中心：需求、流程、架构、协议说明统一沉淀。</div>
                     </div>
                     <div class="conn">▼ 运行时交互</div>
                     <div class="cols">
-                        <div class="node">客户端 → 服务端：HTTP <code>/api/status</code> 拉取状态，<code>/api/control</code> 下发控制。</div>
+                        <div class="node">客户端 → 服务端：HTTP <code>/api/status</code> 拉取状态，<code>/api/control</code> 下发控制。
+                        </div>
                         <div class="node">服务端 → ESP8266 红外板：串口发送文本命令，ESP8266 负责协议解释与红外发射。</div>
                         <div class="node">服务端 ↔ 浏览器：通过 <code>web/index.html</code> 提供本地可视化与调试入口。</div>
                     </div>
@@ -129,13 +263,213 @@
         <section class="section">
             <h2>当前约定</h2>
             <div class="timeline">
-                <div class="step">服务端联网 Wi-Fi 已固定为 <code>iPadmini</code> / <code>lbl450981</code>。离线时仍回退到热点 <code>esp32-server</code> / <code>lbl450981</code>。</div>
+                <div class="step">服务端联网 Wi-Fi 已固定为 <code>iPadmini</code> / <code>lbl450981</code>。离线时仍回退到热点
+                    <code>esp32-server</code> / <code>lbl450981</code>。
+                </div>
                 <div class="step">客户端主链路只走 HTTP，不依赖 MQTT。MQTT 当前只保留占位代码与说明，后续单独设计再恢复。</div>
                 <div class="step">红外控制简化为字符串命令。服务端只负责向 ESP8266 发字符串，由 ESP8266 自己解释协议与动作。</div>
                 <div class="step">8pin TFT 以后会改成 LVGL 界面，但目前界面尚未设计，因此显示逻辑先屏蔽，不让未定 UI 反向污染协议和固件结构。</div>
             </div>
         </section>
+
+        <section class="section">
+            <h2>双项目主要文件拓扑图</h2>
+            <p class="sub">聚焦 <code>esp32_home_client</code> 与 <code>esp32_home_server</code>
+                的核心文件与调用关系：箭头表示“依赖/调用/数据流向”。</p>
+            <div class="topo">
+                <div id="topology-graph" role="img" aria-label="esp32_home_client 与 esp32_home_server 主要文件拓扑图"></div>
+                <p class="graph-tip">支持拖动画布、滚轮缩放、节点拖动。橙色区域为客户端，蓝绿色区域为服务端，粉色节点为约定/配置文件。</p>
+            </div>
+        </section>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.3/dist/cytoscape.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+    <script>
+        cytoscape.use(cytoscapeDagre);
+
+        const cy = cytoscape({
+            container: document.getElementById("topology-graph"),
+            elements: [
+                { data: { id: "client-group", label: "esp32_home_client" }, classes: "group client-group" },
+                { data: { id: "server-group", label: "esp32_home_server" }, classes: "group server-group" },
+
+                { data: { id: "c-main", parent: "client-group", label: "src/main.cpp" }, classes: "client" },
+                { data: { id: "c-app", parent: "client-group", label: "src/HomeClientApp.cpp\ninclude/HomeClientApp.h" }, classes: "client" },
+                { data: { id: "c-input", parent: "client-group", label: "src/InputManager.cpp\ninclude/InputManager.h" }, classes: "client" },
+                { data: { id: "c-output", parent: "client-group", label: "src/OutputManager.cpp\ninclude/OutputManager.h" }, classes: "client" },
+                { data: { id: "c-api", parent: "client-group", label: "src/ServerApiClient.cpp\ninclude/ServerApiClient.h" }, classes: "client" },
+                { data: { id: "c-wifi", parent: "client-group", label: "src/ClientWiFiManager.cpp\ninclude/ClientWiFiManager.h" }, classes: "client" },
+                { data: { id: "c-contract", parent: "client-group", label: "include/ClientContracts.h\ninclude/ClientConfig.h" }, classes: "contract" },
+
+                { data: { id: "s-main", parent: "server-group", label: "src/main.cpp" }, classes: "server" },
+                { data: { id: "s-central", parent: "server-group", label: "src/CentralProcessor.cpp\ninclude/CentralProcessor.h" }, classes: "server" },
+                { data: { id: "s-conn", parent: "server-group", label: "src/ConnectivityManager.cpp\ninclude/ConnectivityManager.h" }, classes: "server" },
+                { data: { id: "s-sensor", parent: "server-group", label: "src/Sensor.cpp + SensorDataProcessor.cpp\ninclude/Sensor.h + SensorDataProcessor.h" }, classes: "server" },
+                { data: { id: "s-auto", parent: "server-group", label: "src/AutomationEngine.cpp\ninclude/AutomationEngine.h" }, classes: "server" },
+                { data: { id: "s-cmd", parent: "server-group", label: "src/ControllerCommandProcessor.cpp\ninclude/ControllerCommandProcessor.h" }, classes: "server" },
+                { data: { id: "s-ctrl", parent: "server-group", label: "src/Controllerr.cpp\ninclude/Controllerr.h" }, classes: "server" },
+                { data: { id: "s-local", parent: "server-group", label: "src/LocalProcessingProgram.cpp\ninclude/LocalProcessingProgram.h" }, classes: "server" },
+                { data: { id: "s-mqtt", parent: "server-group", label: "src/MqttUpstream.cpp\ninclude/MqttUpstream.h" }, classes: "server muted" },
+                { data: { id: "s-contract", parent: "server-group", label: "include/SystemContracts.h\ninclude/pins.h" }, classes: "contract" },
+                { data: { id: "s-web", parent: "server-group", label: "web/index.html" }, classes: "server" },
+
+                { data: { id: "e1", source: "c-main", target: "c-app", label: "启动" } },
+                { data: { id: "e2", source: "c-app", target: "c-input", label: "读取输入" } },
+                { data: { id: "e3", source: "c-app", target: "c-output", label: "驱动显示" } },
+                { data: { id: "e4", source: "c-app", target: "c-api", label: "HTTP 调用" } },
+                { data: { id: "e5", source: "c-app", target: "c-wifi", label: "联网管理" } },
+                { data: { id: "e6", source: "c-app", target: "c-contract", label: "配置约定" }, classes: "dashed" },
+
+                { data: { id: "e7", source: "s-main", target: "s-central", label: "启动" } },
+                { data: { id: "e8", source: "s-central", target: "s-conn", label: "网络服务" } },
+                { data: { id: "e9", source: "s-central", target: "s-sensor", label: "传感数据" } },
+                { data: { id: "e10", source: "s-central", target: "s-auto", label: "自动化计算" } },
+                { data: { id: "e11", source: "s-central", target: "s-cmd", label: "控制编排" } },
+                { data: { id: "e12", source: "s-cmd", target: "s-ctrl", label: "执行动作" } },
+                { data: { id: "e13", source: "s-central", target: "s-local", label: "本地逻辑" } },
+                { data: { id: "e14", source: "s-central", target: "s-mqtt", label: "上行占位" } },
+                { data: { id: "e15", source: "s-central", target: "s-contract", label: "系统约定" }, classes: "dashed" },
+                { data: { id: "e16", source: "s-conn", target: "s-web", label: "网页接口" } },
+
+                { data: { id: "e17", source: "c-api", target: "s-central", label: "HTTP /api/status /api/control" }, classes: "cross" },
+                { data: { id: "e18", source: "s-sensor", target: "s-auto", label: "环境数据" }, classes: "dashed" },
+                { data: { id: "e19", source: "s-auto", target: "s-cmd", label: "执行计划" }, classes: "dashed" }
+            ],
+            style: [
+                {
+                    selector: "node",
+                    style: {
+                        label: "data(label)",
+                        "font-size": 11,
+                        "font-family": "Avenir Next, PingFang SC, Microsoft YaHei, sans-serif",
+                        "text-wrap": "wrap",
+                        "text-max-width": 180,
+                        "text-valign": "center",
+                        "text-halign": "center",
+                        "border-width": 1.4,
+                        "background-color": "#ffffff",
+                        "border-color": "#6f8485",
+                        color: "#243737",
+                        width: 186,
+                        height: 72,
+                        padding: "8px"
+                    }
+                },
+                {
+                    selector: "node.group",
+                    style: {
+                        "font-size": 14,
+                        "font-weight": 700,
+                        "text-valign": "top",
+                        "text-halign": "center",
+                        "text-margin-y": 16,
+                        "background-opacity": 0.25,
+                        "border-style": "dashed",
+                        width: "label",
+                        height: "label",
+                        padding: "24px"
+                    }
+                },
+                {
+                    selector: "node.client-group",
+                    style: {
+                        "background-color": "#f9eed5",
+                        "border-color": "#c1983c"
+                    }
+                },
+                {
+                    selector: "node.server-group",
+                    style: {
+                        "background-color": "#d9ecec",
+                        "border-color": "#2f7f86"
+                    }
+                },
+                {
+                    selector: "node.client",
+                    style: {
+                        "background-color": "#fffaf2",
+                        "border-color": "#b48729"
+                    }
+                },
+                {
+                    selector: "node.server",
+                    style: {
+                        "background-color": "#f4fcfc",
+                        "border-color": "#2c7980"
+                    }
+                },
+                {
+                    selector: "node.contract",
+                    style: {
+                        "background-color": "#fff5f8",
+                        "border-color": "#a34f6a"
+                    }
+                },
+                {
+                    selector: "node.muted",
+                    style: {
+                        opacity: 0.72
+                    }
+                },
+                {
+                    selector: "edge",
+                    style: {
+                        width: 1.5,
+                        "line-color": "#708586",
+                        "target-arrow-color": "#708586",
+                        "target-arrow-shape": "triangle",
+                        "curve-style": "bezier",
+                        label: "data(label)",
+                        "font-size": 9,
+                        "text-background-opacity": 1,
+                        "text-background-color": "#f6f9fa",
+                        "text-background-padding": 2,
+                        color: "#445657",
+                        "text-rotation": "autorotate"
+                    }
+                },
+                {
+                    selector: "edge.dashed",
+                    style: {
+                        "line-style": "dashed"
+                    }
+                },
+                {
+                    selector: "edge.cross",
+                    style: {
+                        width: 2.4,
+                        "line-color": "#9a4f69",
+                        "target-arrow-color": "#9a4f69",
+                        "line-style": "solid"
+                    }
+                }
+            ],
+            layout: {
+                name: "dagre",
+                rankDir: "LR",
+                nodeSep: 46,
+                rankSep: 90,
+                edgeSep: 20,
+                fit: true,
+                animate: true,
+                animationDuration: 460,
+                padding: 24
+            },
+            wheelSensitivity: 0.18,
+            minZoom: 0.45,
+            maxZoom: 2.2
+        });
+
+        cy.ready(() => {
+            cy.center();
+        });
+
+        window.addEventListener("resize", () => {
+            cy.resize();
+            cy.fit(undefined, 24);
+        });
+    </script>
 </body>
 
 </html>
