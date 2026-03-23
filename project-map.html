@@ -213,8 +213,7 @@
     <div class="wrap">
         <section class="hero">
             <h1>ESP32 Home 仓库结构说明</h1>
-            <p class="sub">当前仓库围绕“服务端主控 + 局域网客户端面板 + 文档中心”来组织。服务端负责采集、网页、自动化和串口红外桥接；客户端负责按钮、旋钮、RGB 指示灯和 HTTP
-                控制；共享文档只保留已定方案，未定的 LVGL 画面和 MQTT 细节先挂起。</p>
+            <p class="sub">当前仓库围绕“服务端主控 + 局域网客户端面板 + 文档中心”来组织。真正已经跑起来的主链路是服务端网页与 HTTP 控制；客户端是第二入口；ESP8266 红外桥工程目录已建立，但当前仍处于占位阶段。</p>
         </section>
 
         <section class="section">
@@ -224,13 +223,13 @@
                     <p><code>esp32_home_server/</code> 负责传感器采样、自动化、网页 API、风扇/窗帘执行和串口红外桥接。</p>
                 </article>
                 <article class="card"><span class="tag client">客户端</span>
-                    <p><code>esp32_home_client/</code> 负责按键、旋钮、RGB、LCD1602，以及通过 HTTP 控制服务端。</p>
+                    <p><code>esp32_home_client/</code> 负责按键、旋钮、RGB、LCD1602，以及通过 HTTP 控制服务端。它是控制入口，不是主控中心。</p>
                 </article>
                 <article class="card"><span class="tag shared">文档</span>
                     <p><code>doc/</code> 是统一文档中心。协议、需求和结构图都优先写在这里，不再在子项目里散落副本。</p>
                 </article>
                 <article class="card"><span class="tag hold">暂缓项</span>
-                    <p>LVGL 8pin 显示界面尚未定稿，因此先屏蔽相关显示实现；MQTT 也仅保留占位接口，不作为当前联调主链路。</p>
+                    <p>LVGL 8pin 显示界面尚未定稿；MQTT 仅保留预留接口；ESP8266 红外桥项目目录已创建，但代码仍未进入正式实现阶段。</p>
                 </article>
             </div>
         </section>
@@ -267,8 +266,9 @@
                     <code>esp32-server</code> / <code>lbl450981</code>。
                 </div>
                 <div class="step">客户端主链路只走 HTTP，不依赖 MQTT。MQTT 当前只保留占位代码与说明，后续单独设计再恢复。</div>
-                <div class="step">红外控制简化为字符串命令。服务端只负责向 ESP8266 发字符串，由 ESP8266 自己解释协议与动作。</div>
+                <div class="step">红外控制简化为字符串命令。服务端只负责向 ESP8266 发字符串；但当前 <code>esp8266_ir_control/</code> 仍是占位工程，红外执行端还需要后续实现。</div>
                 <div class="step">8pin TFT 以后会改成 LVGL 界面，但目前界面尚未设计，因此显示逻辑先屏蔽，不让未定 UI 反向污染协议和固件结构。</div>
+                <div class="step">最近服务端重点在“可用性”而不是“加新功能”，已经处理网页控制延迟、蜂鸣器阻塞、舵机联动和主循环卡顿等问题。</div>
             </div>
         </section>
 
