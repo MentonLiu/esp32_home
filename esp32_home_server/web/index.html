@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ESP32 Home Server</title>
     <style>
+        /* 主题变量：统一控制颜色、阴影与视觉风格。 */
         :root {
             --bg: #f4efe7;
             --panel: rgba(255, 252, 247, 0.92);
@@ -20,7 +21,12 @@
             --shadow: 0 18px 45px rgba(25, 40, 39, 0.12);
         }
 
-        * { box-sizing: border-box; }
+        /* 全局盒模型统一为 border-box，便于尺寸推导。 */
+        * {
+            box-sizing: border-box;
+        }
+
+        /* 页面底色使用多层渐变，避免纯色背景单调。 */
         body {
             margin: 0;
             color: var(--ink);
@@ -32,19 +38,66 @@
             min-height: 100vh;
         }
 
-        .page { max-width: 1120px; margin: 0 auto; padding: 24px 16px 48px; }
-        .hero, .panel {
+        /* 页面内容容器。 */
+        .page {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 24px 16px 48px;
+        }
+
+        /* hero 与 panel 共用卡片风格。 */
+        .hero,
+        .panel {
             background: var(--panel);
             border: 1px solid var(--line);
             border-radius: 24px;
             box-shadow: var(--shadow);
         }
-        .hero { padding: 28px; display: grid; gap: 18px; }
-        .hero-top { display: flex; justify-content: space-between; gap: 16px; align-items: start; flex-wrap: wrap; }
-        h1, h2 { margin: 0; }
-        .sub { margin: 10px 0 0; max-width: 720px; color: var(--muted); line-height: 1.7; font-size: 0.98rem; }
-        .hero-badges, .nav, .button-row, .preset-row { display: flex; flex-wrap: wrap; gap: 10px; }
-        .badge, .nav a {
+
+        /* 顶部概览区域。 */
+        .hero {
+            padding: 28px;
+            display: grid;
+            gap: 18px;
+        }
+
+        /* 标题与状态徽章横向布局。 */
+        .hero-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: start;
+            flex-wrap: wrap;
+        }
+
+        /* 标题默认边距归零。 */
+        h1,
+        h2 {
+            margin: 0;
+        }
+
+        /* 页面副描述文案。 */
+        .sub {
+            margin: 10px 0 0;
+            max-width: 720px;
+            color: var(--muted);
+            line-height: 1.7;
+            font-size: 0.98rem;
+        }
+
+        /* 徽章组、导航、按钮组统一采用换行弹性布局。 */
+        .hero-badges,
+        .nav,
+        .button-row,
+        .preset-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* 徽章和导航链接共享圆角标签样式。 */
+        .badge,
+        .nav a {
             border-radius: 999px;
             padding: 10px 14px;
             border: 1px solid var(--line);
@@ -53,19 +106,96 @@
             color: var(--ink);
             font-weight: 600;
         }
-        .grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 16px; margin-top: 16px; }
-        .stack { display: grid; gap: 16px; }
-        .panel { padding: 20px; }
-        .title-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
-        .tiny { color: var(--muted); font-size: 0.88rem; }
-        .sensor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-        .sensor-card { border: 1px solid var(--line); border-radius: 18px; padding: 14px; background: rgba(255,255,255,0.74); }
-        .sensor-card .label { font-size: 0.82rem; color: var(--muted); margin-bottom: 8px; }
-        .sensor-card .value { font-size: 1.45rem; font-weight: 700; }
-        .status-banner { border-radius: 18px; padding: 14px 16px; background: linear-gradient(135deg, rgba(19, 93, 102, 0.08), rgba(234,111,45,0.12)); border: 1px solid var(--line); display: grid; gap: 4px; }
-        .status-banner strong { font-size: 1rem; }
-        .error { color: var(--danger); }
-        .controls { display: grid; gap: 14px; }
+
+        /* 主体双列布局：左侧传感/状态，右侧控制面板。 */
+        .grid {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        /* 列内部卡片堆叠布局。 */
+        .stack {
+            display: grid;
+            gap: 16px;
+        }
+
+        /* 通用面板内边距。 */
+        .panel {
+            padding: 20px;
+        }
+
+        /* 面板标题行。 */
+        .title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        /* 辅助小字样式。 */
+        .tiny {
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        /* 传感器卡片网格。 */
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        /* 单个传感器卡片。 */
+        .sensor-card {
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.74);
+        }
+
+        /* 传感器标签文本。 */
+        .sensor-card .label {
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        /* 传感器数值文本。 */
+        .sensor-card .value {
+            font-size: 1.45rem;
+            font-weight: 700;
+        }
+
+        /* 系统状态横幅。 */
+        .status-banner {
+            border-radius: 18px;
+            padding: 14px 16px;
+            background: linear-gradient(135deg, rgba(19, 93, 102, 0.08), rgba(234, 111, 45, 0.12));
+            border: 1px solid var(--line);
+            display: grid;
+            gap: 4px;
+        }
+
+        /* 状态横幅标题。 */
+        .status-banner strong {
+            font-size: 1rem;
+        }
+
+        /* 错误文本颜色。 */
+        .error {
+            color: var(--danger);
+        }
+
+        /* 控件区域采用纵向排列。 */
+        .controls {
+            display: grid;
+            gap: 14px;
+        }
+
+        /* 通用按钮样式。 */
         button {
             border: 0;
             border-radius: 14px;
@@ -76,51 +206,117 @@
             color: white;
             background: var(--brand);
         }
-        button.secondary { background: var(--accent); }
-        button.warn { background: var(--warn); }
-        button.danger { background: var(--danger); }
-        input[type="range"] { width: 100%; accent-color: var(--brand); }
-        .range-label { display: flex; justify-content: space-between; align-items: center; font-size: 0.92rem; margin-bottom: 8px; }
-        .log { border: 1px dashed var(--line); background: rgba(255,255,255,0.55); border-radius: 16px; padding: 12px 14px; color: var(--muted); min-height: 64px; line-height: 1.6; }
-        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+        /* 次级按钮（橙色）。 */
+        button.secondary {
+            background: var(--accent);
+        }
+
+        /* 警告按钮（黄）。 */
+        button.warn {
+            background: var(--warn);
+        }
+
+        /* 危险按钮（红）。 */
+        button.danger {
+            background: var(--danger);
+        }
+
+        /* 滑条统一外观。 */
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--brand);
+        }
+
+        /* 滑条标题与实时值同行显示。 */
+        .range-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.92rem;
+            margin-bottom: 8px;
+        }
+
+        /* 操作日志区域。 */
+        .log {
+            border: 1px dashed var(--line);
+            background: rgba(255, 255, 255, 0.55);
+            border-radius: 16px;
+            padding: 12px 14px;
+            color: var(--muted);
+            min-height: 64px;
+            line-height: 1.6;
+        }
+
+        /* 移动端单列化。 */
+        @media (max-width: 900px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 
 <body>
+    <!-- 页面主容器 -->
     <div class="page">
+        <!-- 顶部概览区：标题、模式与 IP -->
         <section class="hero">
             <div class="hero-top">
                 <div>
                     <h1>ESP32 智能家居服务端</h1>
                     <p class="sub">当前页面只保留服务端控制与状态展示。项目结构说明已经移到仓库根目录，红外控制也改成了给 ESP8266 发送字符串命令。</p>
                 </div>
+                <!-- 运行状态徽章 -->
                 <div class="hero-badges">
                     <span class="badge" id="modeBadge">模式加载中</span>
                     <span class="badge" id="ipBadge">IP 加载中</span>
                 </div>
             </div>
+            <!-- 辅助调试入口 -->
             <div class="nav">
                 <a href="/api/status" target="_blank" rel="noreferrer">查看状态接口</a>
             </div>
         </section>
 
+        <!-- 主体两列布局 -->
         <div class="grid">
             <div class="stack">
+                <!-- 左列：传感器卡片 -->
                 <section class="panel">
                     <div class="title-row">
                         <h2>实时传感器</h2>
                         <span class="tiny" id="updatedAt">等待首次采样</span>
                     </div>
                     <div class="sensor-grid">
-                        <article class="sensor-card"><div class="label">温度</div><div class="value" id="temperatureValue">--</div></article>
-                        <article class="sensor-card"><div class="label">湿度</div><div class="value" id="humidityValue">--</div></article>
-                        <article class="sensor-card"><div class="label">光照</div><div class="value" id="lightValue">--</div></article>
-                        <article class="sensor-card"><div class="label">MQ2 烟雾</div><div class="value" id="smokeValue">--</div></article>
-                        <article class="sensor-card"><div class="label">烟雾等级</div><div class="value" id="smokeLevelValue">--</div></article>
-                        <article class="sensor-card"><div class="label">火焰状态</div><div class="value" id="flameValue">--</div></article>
+                        <article class="sensor-card">
+                            <div class="label">温度</div>
+                            <div class="value" id="temperatureValue">--</div>
+                        </article>
+                        <article class="sensor-card">
+                            <div class="label">湿度</div>
+                            <div class="value" id="humidityValue">--</div>
+                        </article>
+                        <article class="sensor-card">
+                            <div class="label">光照</div>
+                            <div class="value" id="lightValue">--</div>
+                        </article>
+                        <article class="sensor-card">
+                            <div class="label">MQ2 烟雾</div>
+                            <div class="value" id="smokeValue">--</div>
+                        </article>
+                        <article class="sensor-card">
+                            <div class="label">烟雾等级</div>
+                            <div class="value" id="smokeLevelValue">--</div>
+                        </article>
+                        <article class="sensor-card">
+                            <div class="label">火焰状态</div>
+                            <div class="value" id="flameValue">--</div>
+                        </article>
                     </div>
                 </section>
 
+                <!-- 左列：系统摘要状态 -->
                 <section class="panel">
                     <div class="title-row">
                         <h2>系统状态</h2>
@@ -135,6 +331,7 @@
             </div>
 
             <div class="stack">
+                <!-- 右列：窗帘控制 -->
                 <section class="panel">
                     <div class="title-row">
                         <h2>窗帘控制</h2>
@@ -155,6 +352,7 @@
                     </div>
                 </section>
 
+                <!-- 右列：风扇控制 -->
                 <section class="panel">
                     <div class="title-row">
                         <h2>风扇控制</h2>
@@ -175,6 +373,7 @@
                     </div>
                 </section>
 
+                <!-- 右列：红外桥接控制 -->
                 <section class="panel">
                     <div class="title-row">
                         <h2>红外桥接</h2>
@@ -195,16 +394,20 @@
     </div>
 
     <script>
+        // 控件引用缓存，避免重复查询 DOM。
         const curtainRange = document.getElementById('curtainRange');
         const fanRange = document.getElementById('fanRange');
+        // 滑条防抖定时器句柄。
         let pendingCurtainTimer = 0;
         let pendingFanTimer = 0;
 
+        // 通用格式化：空值显示为 --。
         function fmt(value, suffix) {
             if (value === undefined || value === null || Number.isNaN(Number(value))) return '--';
             return `${value}${suffix}`;
         }
 
+        // 统一下发控制命令。
         async function sendCommand(body, label) {
             try {
                 const response = await fetch('/api/control', {
@@ -213,13 +416,16 @@
                     body: JSON.stringify(body)
                 });
                 const result = await response.json();
+                // 展示执行反馈。
                 document.getElementById('actionLog').textContent = `${label}：${result.message || JSON.stringify(body)}`;
+                // 命令成功后立即刷新状态，缩短 UI 延迟感。
                 await fetchStatus();
             } catch (error) {
                 document.getElementById('actionLog').textContent = `动作失败：${error.message}`;
             }
         }
 
+        // 拉取并刷新页面状态。
         async function fetchStatus() {
             try {
                 const response = await fetch('/api/status', { cache: 'no-store' });
@@ -229,23 +435,29 @@
                 document.getElementById('ipBadge').textContent = `IP ${data.ip}`;
                 document.getElementById('updatedAt').textContent = `最近刷新 ${new Date().toLocaleTimeString()}`;
 
+                // 传感器区域。
                 document.getElementById('temperatureValue').textContent = fmt(Number(data.temperatureC).toFixed(1), ' °C');
                 document.getElementById('humidityValue').textContent = fmt(Number(data.humidityPercent).toFixed(1), ' %');
                 document.getElementById('lightValue').textContent = fmt(data.lightPercent, ' %');
                 document.getElementById('smokeValue').textContent = fmt(data.mq2Percent, ' %');
                 document.getElementById('smokeLevelValue').textContent = data.smokeLevel || '--';
-                document.getElementById('flameValue').textContent = data.flameDetected ? '检测到火焰' : '未检测到';
+                // 兼容布尔/数字/字符串三种真值表达。
+                const flameDetected = data.flameDetected === true || data.flameDetected === 1 || data.flameDetected === 'true';
+                document.getElementById('flameValue').textContent = flameDetected ? '检测到火焰' : '未检测到';
 
+                // 执行器区域。
                 document.getElementById('curtainAngleText').textContent = `角度 ${data.curtainAngle}°`;
                 document.getElementById('curtainRangeValue').textContent = `${data.curtainAngle}°`;
                 document.getElementById('fanSpeedText').textContent = `速度 ${data.fanSpeedPercent}%`;
                 document.getElementById('fanRangeValue').textContent = `${data.fanSpeedPercent}%`;
                 document.getElementById('fanPowerText').textContent = data.fanPowerOn ? '风扇电源开启' : '风扇电源关闭';
 
+                // 把后端状态回写到滑条，确保 UI 同步。
                 curtainRange.value = data.curtainAngle;
                 fanRange.value = data.fanSpeedPercent;
 
-                const headline = data.flameDetected
+                // 系统摘要优先级：火焰 > 高烟雾 > 网络模式。
+                const headline = flameDetected
                     ? '火焰传感器已触发'
                     : data.mq2Percent >= 75
                         ? '烟雾浓度过高，已自动联动风扇'
@@ -258,12 +470,14 @@
                 document.getElementById('systemDetails').textContent = details;
                 document.getElementById('errorMessage').textContent = data.error ? `传感器异常：${data.errorMessage}` : '';
             } catch (error) {
+                // 状态接口异常兜底展示。
                 document.getElementById('systemHeadline').textContent = '状态拉取失败';
                 document.getElementById('systemDetails').textContent = error.message;
                 document.getElementById('errorMessage').textContent = '';
             }
         }
 
+        // 窗帘滑条：输入时实时显示，延迟下发避免高频请求。
         curtainRange.addEventListener('input', (event) => {
             const angle = Number(event.target.value);
             document.getElementById('curtainRangeValue').textContent = `${angle}°`;
@@ -271,6 +485,7 @@
             pendingCurtainTimer = setTimeout(() => sendCommand({ device: 'curtain', angle }, '窗帘角度调整'), 120);
         });
 
+        // 风扇滑条：同样使用防抖。
         fanRange.addEventListener('input', (event) => {
             const speedPercent = Number(event.target.value);
             document.getElementById('fanRangeValue').textContent = `${speedPercent}%`;
@@ -278,28 +493,34 @@
             pendingFanTimer = setTimeout(() => sendCommand({ device: 'fan', speedPercent }, '风扇速度调整'), 120);
         });
 
+        // 窗帘预设按钮。
         document.querySelectorAll('[data-curtain-preset]').forEach((button) => {
             button.addEventListener('click', () => {
                 sendCommand({ device: 'curtain', preset: Number(button.dataset.curtainPreset) }, '窗帘预设控制');
             });
         });
 
+        // 风扇开关按钮。
         document.getElementById('fanPowerOnBtn').addEventListener('click', () => sendCommand({ device: 'fan', power: 'on' }, '风扇开机'));
         document.getElementById('fanPowerOffBtn').addEventListener('click', () => sendCommand({ device: 'fan', power: 'off' }, '风扇关机'));
 
+        // 风扇模式按钮。
         document.querySelectorAll('[data-fan-mode]').forEach((button) => {
             button.addEventListener('click', () => {
                 sendCommand({ device: 'fan', mode: button.dataset.fanMode }, '风扇模式控制');
             });
         });
 
+        // 红外桥接命令按钮。
         document.querySelectorAll('[data-ir-command]').forEach((button) => {
             button.addEventListener('click', () => {
                 sendCommand({ device: 'ir', command: button.dataset.irCommand }, `红外命令 ${button.dataset.irCommand}`);
             });
         });
 
+        // 周期轮询状态。
         setInterval(fetchStatus, 500);
+        // 页面加载后立即拉一次。
         fetchStatus();
     </script>
 </body>

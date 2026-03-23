@@ -25,9 +25,12 @@ struct SensorSnapshot
 class DhtSensor
 {
 public:
+    // sensorType 默认由上层传入（当前项目使用 DHT11）。
     DhtSensor(uint8_t pin, uint8_t sensorType);
 
+    // 初始化 DHT 设备。
     void begin();
+    // 读取温湿度；失败时返回 false 并写入 error。
     bool read(float &temperatureC, float &humidityPercent, String &error);
 
 private:
@@ -38,9 +41,12 @@ private:
 class AnalogPercentSensor
 {
 public:
+    // inverted=true 时做百分比反转，适配“电压越低值越高”的传感器。
     AnalogPercentSensor(uint8_t pin, bool inverted = false, uint16_t adcMax = 4095);
 
+    // 初始化 ADC 引脚。
     void begin() const;
+    // 读取并映射到 0-100。
     uint8_t readPercent() const;
 
 private:
@@ -59,8 +65,11 @@ public:
               uint8_t flamePin,
               uint8_t dhtType = DHT11);
 
+    // 初始化全部传感器。
     void begin();
+    // 按最小采样间隔轮询一次；返回 true 表示产出新样本。
     bool poll(unsigned long intervalMs = 500);
+    // 获取最新采样快照。
     const SensorSnapshot &latest() const;
 
 private:
@@ -71,6 +80,8 @@ private:
     AnalogPercentSensor light_;
     AnalogPercentSensor mq2_;
     AnalogPercentSensor flame_;
+    // 火焰状态缓存，配合滞回阈值防止边界抖动。
+    bool flameDetectedState_ = false;
     SensorSnapshot latest_;
     unsigned long lastSampleMs_ = 0;
 };

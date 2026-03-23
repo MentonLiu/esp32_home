@@ -9,24 +9,37 @@
 namespace pins
 {
     // 传感器输入引脚。
+    // DHT11 数据线。
     static constexpr uint8_t DHT_DATA = 13;
+    // 光照传感器模拟输入。
     static constexpr uint8_t LIGHT_ANALOG = 4;
+    // MQ2 烟雾传感器模拟输入。
     static constexpr uint8_t MQ2_ANALOG = 5;
+    // 火焰传感器模拟输入。
     static constexpr uint8_t FLAME_ANALOG = 6;
 
     // 执行器输出引脚。
+    // 风扇 PWM 输出。
     static constexpr uint8_t FAN_PWM = 18;
+    // 窗帘舵机 A 控制脚。
     static constexpr uint8_t CURTAIN_SERVO_A = 16;
+    // 窗帘舵机 B 控制脚。
     static constexpr uint8_t CURTAIN_SERVO_B = 17;
+    // 蜂鸣器输出脚。
     static constexpr uint8_t BUZZER = 12;
 
     // 连接红外桥接控制器的串口引脚。
+    // ESP32 接收脚（连接桥接模块 TX）。
     static constexpr uint8_t IR_BRIDGE_UART_RX = 15;
+    // ESP32 发送脚（连接桥接模块 RX）。
     static constexpr uint8_t IR_BRIDGE_UART_TX = 14;
+    // 串口波特率。
     static constexpr uint32_t IR_BRIDGE_UART_BAUD = 115200;
 
     // 外部实时时钟总线引脚。
+    // I2C SDA。
     static constexpr uint8_t RTC_I2C_SDA = 8;
+    // I2C SCL。
     static constexpr uint8_t RTC_I2C_SCL = 9;
 } // 命名空间结束
 

@@ -5,10 +5,17 @@
 
 #include <math.h>
 
+namespace
+{
+    constexpr uint8_t kFlameOnThresholdPercent = 60;
+    constexpr uint8_t kFlameOffThresholdPercent = 45;
+} // namespace
+
 DhtSensor::DhtSensor(uint8_t pin, uint8_t sensorType) : dht_(pin, sensorType) {}
 
 void DhtSensor::begin()
 {
+    // DHT 库内部会完成引脚与时序初始化。
     dht_.begin();
 }
 
@@ -59,6 +66,7 @@ SensorHub::SensorHub(uint8_t dhtPin,
       mq2_(mq2Pin, false),
       flame_(flamePin, false)
 {
+    // 构造阶段仅绑定引脚与参数，不做硬件访问。
 }
 
 void SensorHub::begin()
@@ -89,6 +97,7 @@ bool SensorHub::poll(unsigned long intervalMs)
     String error;
     if (!dht_.read(latest_.temperatureC, latest_.humidityPercent, error))
     {
+        // DHT 失败属于可恢复错误，不影响其它传感器继续采样。
         latest_.hasError = true;
         latest_.errorMessage = error;
     }
@@ -96,8 +105,21 @@ bool SensorHub::poll(unsigned long intervalMs)
     latest_.lightPercent = light_.readPercent();
     latest_.mq2Percent = mq2_.readPercent();
     latest_.smokeLevel = smokeLevelFromPercent(latest_.mq2Percent);
-    // 火焰检测采用百分比阈值二值判定。
-    latest_.flameDetected = flame_.readPercent() >= 60;
+    // 使用滞回阈值，避免模拟量在边界抖动导致状态卡住。
+    const uint8_t flamePercent = flame_.readPercent();
+    if (flameDetectedState_)
+    {
+        if (flamePercent <= kFlameOffThresholdPercent)
+        {
+            flameDetectedState_ = false;
+        }
+    }
+    else if (flamePercent >= kFlameOnThresholdPercent)
+    {
+        flameDetectedState_ = true;
+    }
+
+    latest_.flameDetected = flameDetectedState_;
     return true;
 }
 

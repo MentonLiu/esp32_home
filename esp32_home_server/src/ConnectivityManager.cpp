@@ -18,6 +18,7 @@ ConnectivityManager::ConnectivityManager(const char *stationSsid,
       mqttClient_(wifiClient_),
       server_(80)
 {
+    // 保存实例地址，供静态 MQTT 回调转发使用。
     instance_ = this;
 }
 
@@ -29,6 +30,7 @@ void ConnectivityManager::begin()
     mqttClient_.setCallback(ConnectivityManager::handleMqttDispatch);
 
     connectStation(true);
+    // 根据连接结果决定 cloud/local_ap。
     evaluateMode();
 }
 
@@ -45,6 +47,7 @@ void ConnectivityManager::loop()
     }
     else if (mqttClient_.connected())
     {
+        // 非云模式主动断开 MQTT，避免无效占用。
         mqttClient_.disconnect();
     }
 
@@ -78,6 +81,7 @@ void ConnectivityManager::configureCloudMqtt(const char *host,
 
 void ConnectivityManager::setMqttHandler(MqttHandler handler)
 {
+    // 允许上层替换处理器（如切换不同业务逻辑）。
     mqttHandler_ = handler;
 }
 
@@ -89,6 +93,7 @@ bool ConnectivityManager::mqttPublish(const char *topic, const String &payload)
         return false;
     }
 
+    // PubSubClient 发送接口要求 C 字符串。
     return mqttClient_.publish(topic, payload.c_str());
 }
 
@@ -109,6 +114,7 @@ OperatingMode ConnectivityManager::mode() const
 
 IPAddress ConnectivityManager::localIp() const
 {
+    // 云模式返回路由器分配地址；本地模式返回 AP 地址。
     return mode_ == OperatingMode::Cloud ? WiFi.localIP() : WiFi.softAPIP();
 }
 
@@ -191,6 +197,7 @@ void ConnectivityManager::startLocalAp()
         return;
     }
 
+    // AP+STA 并行：热点可用同时保留 STA 重连能力。
     WiFi.mode(WIFI_AP_STA);
     WiFi.softAP(apSsid_, apPassword_);
     apStarted_ = true;
@@ -203,6 +210,7 @@ void ConnectivityManager::stopLocalAp()
         return;
     }
 
+    // 关闭热点后回到 STA 模式。
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_STA);
     apStarted_ = false;
@@ -250,10 +258,12 @@ bool ConnectivityManager::ensureMqttConnected()
     bool connected = false;
     if (mqttUser_ != nullptr && strlen(mqttUser_) > 0)
     {
+        // 认证模式连接。
         connected = mqttClient_.connect(mqttClientId_, mqttUser_, mqttPassword_);
     }
     else
     {
+        // 匿名连接。
         connected = mqttClient_.connect(mqttClientId_);
     }
 

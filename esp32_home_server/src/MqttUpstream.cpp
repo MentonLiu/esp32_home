@@ -6,6 +6,7 @@
 namespace
 {
     // 集中管理云端服务地址与主题字面量。
+    // 当前为占位配置，后续接入真实 Broker 时只需改这里。
     constexpr mqtt_upstream::CloudConfig kCloudConfig = {
         "example.mosquitto.server",
         1883,
@@ -13,6 +14,7 @@ namespace
         nullptr,
         nullptr};
 
+    // 主题命名约定：esp32/home/<domain>
     constexpr const char *kSensorTopic = "esp32/home/sensors";
     constexpr const char *kStatusTopic = "esp32/home/status";
     constexpr const char *kAlarmTopic = "esp32/home/alarm";
@@ -27,6 +29,7 @@ namespace mqtt_upstream
         return kCloudConfig;
     }
 
+    // 以下访问器函数统一返回静态主题常量。
     const char *sensorTopic()
     {
         return kSensorTopic;

@@ -10,12 +10,12 @@ CentralProcessor processor;
 
 void setup()
 {
-    // 开机时完成所有模块初始化。
+    // Arduino 入口：上电后仅执行一次，负责系统初始化。
     processor.begin();
 }
 
 void loop()
 {
-    // 持续驱动系统状态机运行。
+    // Arduino 主循环：高频反复执行，驱动全系统状态机。
     processor.loop();
 }

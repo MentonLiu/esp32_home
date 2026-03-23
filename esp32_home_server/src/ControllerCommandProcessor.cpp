@@ -15,23 +15,28 @@ ControllerCommandProcessor::ControllerCommandProcessor(RelayFanController &fan,
 
 void ControllerCommandProcessor::begin(Stream &irBridgeSerial)
 {
+    // 执行器初始化顺序：先风扇与窗帘，再蜂鸣器与红外桥接。
     fan_.begin();
     curtain_.begin();
     buzzer_.begin();
     ir_.begin(irBridgeSerial);
+    // 默认上电时风扇处于断电状态。
     state_.fanPowerOn = false;
+    // 读取一次真实状态，确保 state_ 和底层一致。
     refreshState();
 }
 
 CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonText, CommandSource source)
 {
     CommandResult result;
+    // 默认把来源写入结果类型，便于上游区分来源。
     result.type = sourceType(source);
 
     JsonDocument doc;
     const DeserializationError err = deserializeJson(doc, jsonText);
     if (err)
     {
+        // JSON 解析失败直接返回，避免误操作执行器。
         result.type = "error";
         result.message = String("invalid_control_json:") + err.c_str();
         return result;
@@ -40,6 +45,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
     const String device = doc["device"] | "";
     if (device.length() == 0)
     {
+        // 设备字段缺失时不做任何控制。
         result.type = "error";
         result.message = "device_missing";
         return result;
@@ -47,6 +53,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
     if (device == "fan")
     {
+        // fan 支持 power/mode/speedPercent 三种子命令组合。
         bool handled = false;
 
         const String power = doc["power"] | "";
@@ -62,6 +69,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
             }
             else
             {
+                // 非法电源命令。
                 result.type = "error";
                 result.message = "fan_power_invalid";
                 return result;
@@ -72,6 +80,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
         const String mode = doc["mode"] | "";
         if (mode.length() > 0)
         {
+            // 防误操作：未通电时不允许切到非 off 档。
             if (!isFanPowerOn() && mode != "off")
             {
                 result.type = "error";
@@ -97,6 +106,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
             }
             else
             {
+                // 非法模式字符串。
                 result.type = "error";
                 result.message = "fan_mode_invalid";
                 return result;
@@ -106,6 +116,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
         if (!doc["speedPercent"].isNull())
         {
+            // 同样要求风扇已通电。
             if (!isFanPowerOn())
             {
                 result.type = "error";
@@ -119,6 +130,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
         if (!handled)
         {
+            // fan 命令中未给任何可执行字段。
             result.type = "error";
             result.message = "fan_command_missing";
             return result;
@@ -132,6 +144,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
     if (device == "curtain")
     {
+        // curtain 支持 angle 与 preset。
         bool handled = false;
 
         if (!doc["angle"].isNull())
@@ -148,9 +161,16 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
         if (!handled)
         {
+            // curtain 命令缺少具体动作。
             result.type = "error";
             result.message = "curtain_command_missing";
             return result;
+        }
+
+        // 非自动化来源的窗帘控制视为手动覆盖行为。
+        if (source != CommandSource::Automation)
+        {
+            lastManualCurtainCommandMs_ = millis();
         }
 
         result.accepted = true;
@@ -161,6 +181,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
     if (device == "ir")
     {
+        // 红外桥接仅接收 command 文本。
         const String command = doc["command"] | "";
         if (command.length() == 0)
         {
@@ -170,6 +191,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
         }
 
         const bool ok = ir_.sendTextCommand(command);
+        // 发送后刷新状态，以便记录 lastIrCommand。
         refreshState();
         result.accepted = ok;
         result.stateChanged = ok;
@@ -185,6 +207,7 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
 void ControllerCommandProcessor::setFanPower(bool powerOn)
 {
+    // 电源状态与风扇速度联动：断电则强制速度为 0。
     state_.fanPowerOn = powerOn;
     if (!powerOn)
     {
@@ -192,6 +215,7 @@ void ControllerCommandProcessor::setFanPower(bool powerOn)
     }
     else if (fan_.speedPercent() == 0)
     {
+        // 上电时如果速度为 0，默认给低档，提升可感知性。
         fan_.setMode(FanMode::Low);
     }
     refreshState();
@@ -204,6 +228,7 @@ bool ControllerCommandProcessor::isFanPowerOn() const
 
 void ControllerCommandProcessor::setFanMode(FanMode mode)
 {
+    // Off 作为“断电语义”处理，保持状态一致。
     if (mode == FanMode::Off)
     {
         state_.fanPowerOn = false;
@@ -219,6 +244,7 @@ void ControllerCommandProcessor::setFanMode(FanMode mode)
 
 void ControllerCommandProcessor::setFanSpeedPercent(uint8_t speedPercent)
 {
+    // 直接调速时隐式上电。
     state_.fanPowerOn = true;
     fan_.setSpeedPercent(speedPercent);
     refreshState();
@@ -226,6 +252,7 @@ void ControllerCommandProcessor::setFanSpeedPercent(uint8_t speedPercent)
 
 void ControllerCommandProcessor::setCurtainAngle(uint8_t angle)
 {
+    // 手动角度会覆盖预设语义。
     curtain_.setAngle(angle);
     state_.hasCurtainPreset = false;
     refreshState();
@@ -233,6 +260,7 @@ void ControllerCommandProcessor::setCurtainAngle(uint8_t angle)
 
 void ControllerCommandProcessor::setCurtainPreset(uint8_t preset)
 {
+    // 预设编号限制在 0-4，防止数组越界。
     state_.lastCurtainPreset = constrain(preset, 0, 4);
     state_.hasCurtainPreset = true;
     curtain_.setPresetLevel(state_.lastCurtainPreset);
@@ -249,8 +277,21 @@ void ControllerCommandProcessor::playFireAlarmPattern()
     buzzer_.patternShortShortLong();
 }
 
+bool ControllerCommandProcessor::sendIrCommand(const String &commandText)
+{
+    if (commandText.length() == 0)
+    {
+        return false;
+    }
+
+    const bool ok = ir_.sendTextCommand(commandText);
+    refreshState();
+    return ok;
+}
+
 bool ControllerCommandProcessor::pollIrBridgeMessage(String &payload)
 {
+    // 非阻塞轮询：无消息时快速返回。
     const IRDecodedSignal signal = ir_.receive();
     if (!signal.available)
     {
@@ -266,8 +307,14 @@ const ControllerState &ControllerCommandProcessor::state() const
     return state_;
 }
 
+unsigned long ControllerCommandProcessor::lastManualCurtainCommandMs() const
+{
+    return lastManualCurtainCommandMs_;
+}
+
 void ControllerCommandProcessor::refreshState()
 {
+    // 从各控制器回读真实状态，避免“仅靠命令假设状态”。
     state_.fanMode = fan_.mode();
     state_.fanSpeedPercent = fan_.speedPercent();
     state_.curtainAngle = curtain_.angle();

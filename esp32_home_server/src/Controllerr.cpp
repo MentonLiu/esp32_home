@@ -10,6 +10,7 @@ RelayFanController::RelayFanController(uint8_t pin, uint8_t pwmChannel)
 
 void RelayFanController::begin()
 {
+    // 风扇使用 25kHz 8bit PWM，降低可闻噪声并保留足够调速粒度。
     pinMode(pin_, OUTPUT);
     ledcSetup(pwmChannel_, 25000, 8);
     ledcAttachPin(pin_, pwmChannel_);
@@ -18,6 +19,7 @@ void RelayFanController::begin()
 
 void RelayFanController::setMode(FanMode mode)
 {
+    // 统一把档位映射到固定速度百分比。
     switch (mode)
     {
     case FanMode::Off:
@@ -37,9 +39,11 @@ void RelayFanController::setMode(FanMode mode)
 
 void RelayFanController::setSpeedPercent(uint8_t speedPercent)
 {
+    // 百分比换算为 8bit 占空比。
     speedPercent_ = constrain(speedPercent, 0, 100);
     const uint8_t duty = static_cast<uint8_t>(map(speedPercent_, 0, 100, 0, 255));
     ledcWrite(pwmChannel_, duty);
+    // 同步更新档位语义，供页面显示。
     mode_ = modeFromSpeed(speedPercent_);
 }
 
@@ -55,6 +59,7 @@ uint8_t RelayFanController::speedPercent() const
 
 FanMode RelayFanController::modeFromSpeed(uint8_t speedPercent) const
 {
+    // 反向映射区间可按硬件体验继续微调。
     if (speedPercent == 0)
     {
         return FanMode::Off;
@@ -74,8 +79,10 @@ DualCurtainController::DualCurtainController(uint8_t pinA, uint8_t pinB) : pinA_
 
 void DualCurtainController::begin()
 {
+    // 标准舵机 50Hz。
     servoA_.setPeriodHertz(50);
     servoB_.setPeriodHertz(50);
+    // 脉宽范围可按舵机型号调整（单位 us）。
     servoA_.attach(pinA_, 500, 2400);
     servoB_.attach(pinB_, 500, 2400);
     setAngle(0);
@@ -83,6 +90,7 @@ void DualCurtainController::begin()
 
 void DualCurtainController::setAngle(uint8_t angle)
 {
+    // 双舵机反向联动：A 正向，B 反向。
     currentAngle_ = constrain(angle, 0, 180);
     servoA_.write(currentAngle_);
     servoB_.write(180 - currentAngle_);
@@ -90,6 +98,7 @@ void DualCurtainController::setAngle(uint8_t angle)
 
 void DualCurtainController::setPresetLevel(uint8_t preset)
 {
+    // 预设：0=全关,1=1/4,2=半开,3=3/4,4=全开。
     static const uint8_t kPresetAngles[] = {0, 45, 90, 135, 180};
     setAngle(kPresetAngles[constrain(preset, 0, 4)]);
 }
@@ -103,6 +112,7 @@ BuzzerController::BuzzerController(uint8_t pin, uint8_t pwmChannel) : pin_(pin),
 
 void BuzzerController::begin()
 {
+    // 蜂鸣器使用独立 PWM 通道，默认静音。
     ledcSetup(pwmChannel_, 2000, 8);
     ledcAttachPin(pin_, pwmChannel_);
     ledcWriteTone(pwmChannel_, 0);
@@ -110,6 +120,7 @@ void BuzzerController::begin()
 
 void BuzzerController::beep(uint16_t frequency, uint16_t durationMs)
 {
+    // 阻塞式蜂鸣：简单直观，适合短告警；复杂场景可改为非阻塞状态机。
     ledcWriteTone(pwmChannel_, frequency);
     delay(durationMs);
     ledcWriteTone(pwmChannel_, 0);
@@ -117,6 +128,7 @@ void BuzzerController::beep(uint16_t frequency, uint16_t durationMs)
 
 void BuzzerController::patternShortShortLong()
 {
+    // 火警提示节奏：短-短-长。
     beep(2400, 120);
     delay(90);
     beep(2400, 120);
@@ -131,11 +143,13 @@ IRController::IRController(uint8_t rxPin, uint8_t txPin, uint32_t baudRate)
 
 void IRController::begin(Stream &serial)
 {
+    // 仅持有 Stream 引用，不接管其生命周期。
     serial_ = &serial;
 }
 
 bool IRController::sendTextCommand(const String &commandText)
 {
+    // 统一走按行协议，便于 ESP8266 端解析。
     return sendLine(commandText);
 }
 
@@ -148,6 +162,7 @@ IRDecodedSignal IRController::receive()
     }
 
     result.payload = serial_->readStringUntil('\n');
+    // 去掉 CR/LF 和两端空白。
     result.payload.trim();
     result.available = result.payload.length() > 0;
     return result;
@@ -170,6 +185,7 @@ bool IRController::sendLine(const String &line)
         return false;
     }
 
+    // 文本协议一行一条命令。
     serial_->println(line);
     lastCommand_ = line;
     return true;

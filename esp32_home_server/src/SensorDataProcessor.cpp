@@ -9,16 +9,19 @@ SensorDataProcessor::SensorDataProcessor(SensorHub &sensorHub) : sensorHub_(sens
 
 void SensorDataProcessor::begin()
 {
+    // 初始化底层传感器集合。
     sensorHub_.begin();
 }
 
 bool SensorDataProcessor::loop()
 {
+    // 未到采样间隔时直接返回。
     if (!sensorHub_.poll())
     {
         return false;
     }
 
+    // 产出新样本后做标准化并打新鲜标记。
     normalize(sensorHub_.latest());
     hasFreshSample_ = true;
     return true;
@@ -26,17 +29,20 @@ bool SensorDataProcessor::loop()
 
 bool SensorDataProcessor::shouldPublish(unsigned long intervalMs)
 {
+    // 没有新样本就不触发发布。
     if (!hasFreshSample_)
     {
         return false;
     }
 
+    // 发布频率节流。
     if (millis() - lastPublishMs_ < intervalMs)
     {
         return false;
     }
 
     lastPublishMs_ = millis();
+    // 标记当前样本已被消费。
     hasFreshSample_ = false;
     return true;
 }
@@ -48,6 +54,7 @@ const StandardSensorData &SensorDataProcessor::latest() const
 
 String SensorDataProcessor::buildSensorJson() const
 {
+    // 轻量传感器快照，用于上行遥测。
     JsonDocument doc;
     doc["sensorType"] = "home_snapshot";
     doc["timestamp"] = latest_.timestamp;
@@ -67,6 +74,7 @@ String SensorDataProcessor::buildSensorJson() const
 
 String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip, const ControllerState &controllerState) const
 {
+    // 完整状态对象，兼容旧字段和嵌套字段两种读取方式。
     JsonDocument doc;
     doc["mode"] = modeToString(mode);
     doc["ip"] = ip;
@@ -85,6 +93,7 @@ String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip
     doc["errorMessage"] = latest_.errorMessage;
 
     JsonObject sensor = doc["sensor"].to<JsonObject>();
+    // 冗余一份 sensor 子对象，便于前端按分组读取。
     sensor["temperatureC"] = latest_.temperatureC;
     sensor["humidityPercent"] = latest_.humidityPercent;
     sensor["lightPercent"] = latest_.lightPercent;
@@ -96,6 +105,7 @@ String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip
     sensor["errorMessage"] = latest_.errorMessage;
 
     JsonObject controller = doc["controller"].to<JsonObject>();
+    // 冗余一份 controller 子对象。
     controller["fanMode"] = fanModeToString(controllerState.fanMode);
     controller["fanPowerOn"] = controllerState.fanPowerOn;
     controller["fanSpeedPercent"] = controllerState.fanSpeedPercent;
@@ -113,6 +123,7 @@ String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip
 
 void SensorDataProcessor::normalize(const SensorSnapshot &snapshot)
 {
+    // 逐字段复制，保持含义明确，避免隐式转换副作用。
     latest_.temperatureC = snapshot.temperatureC;
     latest_.humidityPercent = snapshot.humidityPercent;
     latest_.lightPercent = snapshot.lightPercent;
