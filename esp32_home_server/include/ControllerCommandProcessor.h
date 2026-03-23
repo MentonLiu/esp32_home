@@ -21,6 +21,8 @@ public:
 
     // 初始化所有执行器，并绑定红外桥接串口。
     void begin(Stream &irBridgeSerial);
+    // 推进执行器内部的非阻塞状态机。
+    void loop();
     // 解析并执行 JSON 控制命令。
     CommandResult processCommandJson(const String &jsonText, CommandSource source);
 

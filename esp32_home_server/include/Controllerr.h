@@ -51,6 +51,8 @@ public:
 
     // 设置舵机频率并 attach 到引脚。
     void begin();
+    // 维护舵机自动释放状态，避免长期保持带来抖动与额外电流。
+    void loop();
     // 直接设置窗帘角度（0-180）。
     void setAngle(uint8_t angle);
     // 设置预设档位（0-4）。
@@ -65,6 +67,8 @@ private:
     uint8_t pinA_;
     uint8_t pinB_;
     uint8_t currentAngle_ = 0;
+    bool attached_ = false;
+    unsigned long lastMotionMs_ = 0;
 };
 
 // 蜂鸣器控制器，支持单次鸣叫和固定告警模式。
@@ -76,14 +80,34 @@ public:
 
     // 初始化蜂鸣器 PWM。
     void begin();
+    // 推进非阻塞蜂鸣状态机。
+    void loop();
     // 发出指定频率和时长的蜂鸣。
     void beep(uint16_t frequency, uint16_t durationMs);
     // 固定短短长告警节奏。
     void patternShortShortLong();
 
 private:
+    struct Segment
+    {
+        uint16_t frequency = 0;
+        uint16_t durationMs = 0;
+        uint8_t duty = 0;
+    };
+
+    void startSegment(const Segment &segment);
+    bool enqueueSegment(uint16_t frequency, uint16_t durationMs, uint8_t duty = 220);
+    bool enqueueSilence(uint16_t durationMs);
+
     uint8_t pin_;
     uint8_t pwmChannel_;
+    static constexpr uint8_t kQueueCapacity = 8;
+    Segment queue_[kQueueCapacity];
+    uint8_t queueHead_ = 0;
+    uint8_t queueTail_ = 0;
+    bool segmentActive_ = false;
+    unsigned long segmentStartedMs_ = 0;
+    Segment activeSegment_;
 };
 
 // 红外桥接上行数据。

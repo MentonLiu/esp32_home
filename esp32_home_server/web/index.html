@@ -396,9 +396,14 @@
         // 控件引用缓存，避免重复查询 DOM。
         const curtainRange = document.getElementById('curtainRange');
         const fanRange = document.getElementById('fanRange');
-        // 滑条防抖定时器句柄。
         let pendingCurtainTimer = 0;
         let pendingFanTimer = 0;
+        let curtainDragging = false;
+        let fanDragging = false;
+        let statusRequestInFlight = false;
+        let controlRequestInFlight = 0;
+        let lastCurtainSentAt = 0;
+        let lastFanSentAt = 0;
 
         // 通用格式化：空值显示为 --。
         function fmt(value, suffix) {
@@ -408,6 +413,7 @@
 
         // 统一下发控制命令。
         async function sendCommand(body, label) {
+            controlRequestInFlight += 1;
             try {
                 const response = await fetch('/api/control', {
                     method: 'POST',
@@ -417,15 +423,18 @@
                 const result = await response.json();
                 // 展示执行反馈。
                 document.getElementById('actionLog').textContent = `${label}：${result.message || JSON.stringify(body)}`;
-                // 命令成功后立即刷新状态，缩短 UI 延迟感。
-                await fetchStatus();
+                setTimeout(() => fetchStatus(true), 80);
             } catch (error) {
                 document.getElementById('actionLog').textContent = `动作失败：${error.message}`;
+            } finally {
+                controlRequestInFlight = Math.max(0, controlRequestInFlight - 1);
             }
         }
 
         // 拉取并刷新页面状态。
-        async function fetchStatus() {
+        async function fetchStatus(force = false) {
+            if (statusRequestInFlight || (!force && controlRequestInFlight > 0)) return;
+            statusRequestInFlight = true;
             try {
                 const response = await fetch('/api/status', { cache: 'no-store' });
                 const data = await response.json();
@@ -452,8 +461,12 @@
                 document.getElementById('fanModeText').textContent = `风扇档位 ${data.fanMode || '--'}`;
 
                 // 把后端状态回写到滑条，确保 UI 同步。
-                curtainRange.value = data.curtainAngle;
-                fanRange.value = data.fanSpeedPercent;
+                if (!curtainDragging) {
+                    curtainRange.value = data.curtainAngle;
+                }
+                if (!fanDragging) {
+                    fanRange.value = data.fanSpeedPercent;
+                }
 
                 // 系统摘要优先级：火焰 > 高烟雾 > 网络模式。
                 const headline = flameDetected
@@ -473,23 +486,61 @@
                 document.getElementById('systemHeadline').textContent = '状态拉取失败';
                 document.getElementById('systemDetails').textContent = error.message;
                 document.getElementById('errorMessage').textContent = '';
+            } finally {
+                statusRequestInFlight = false;
             }
         }
 
-        // 窗帘滑条：输入时实时显示，延迟下发避免高频请求。
+        function scheduleCurtainCommand(angle, immediate = false) {
+            const now = Date.now();
+            const waitMs = immediate || now - lastCurtainSentAt >= 90 ? 0 : 90 - (now - lastCurtainSentAt);
+            clearTimeout(pendingCurtainTimer);
+            pendingCurtainTimer = setTimeout(() => {
+                lastCurtainSentAt = Date.now();
+                sendCommand({ device: 'curtain', angle }, '窗帘角度调整');
+            }, waitMs);
+        }
+
+        function scheduleFanCommand(speedPercent, immediate = false) {
+            const now = Date.now();
+            const waitMs = immediate || now - lastFanSentAt >= 90 ? 0 : 90 - (now - lastFanSentAt);
+            clearTimeout(pendingFanTimer);
+            pendingFanTimer = setTimeout(() => {
+                lastFanSentAt = Date.now();
+                sendCommand({ device: 'fan', speedPercent }, '风扇速度调整');
+            }, waitMs);
+        }
+
+        curtainRange.addEventListener('pointerdown', () => {
+            curtainDragging = true;
+        });
+
         curtainRange.addEventListener('input', (event) => {
             const angle = Number(event.target.value);
             document.getElementById('curtainRangeValue').textContent = `${angle}°`;
-            clearTimeout(pendingCurtainTimer);
-            pendingCurtainTimer = setTimeout(() => sendCommand({ device: 'curtain', angle }, '窗帘角度调整'), 120);
+            document.getElementById('curtainAngleText').textContent = `角度 ${angle}°`;
+            scheduleCurtainCommand(angle);
         });
 
-        // 风扇滑条：同样使用防抖。
+        curtainRange.addEventListener('change', (event) => {
+            curtainDragging = false;
+            scheduleCurtainCommand(Number(event.target.value), true);
+        });
+
+        fanRange.addEventListener('pointerdown', () => {
+            fanDragging = true;
+        });
+
         fanRange.addEventListener('input', (event) => {
             const speedPercent = Number(event.target.value);
             document.getElementById('fanRangeValue').textContent = `${speedPercent}%`;
-            clearTimeout(pendingFanTimer);
-            pendingFanTimer = setTimeout(() => sendCommand({ device: 'fan', speedPercent }, '风扇速度调整'), 120);
+            document.getElementById('fanSpeedText').textContent = `速度 ${speedPercent}%`;
+            scheduleFanCommand(speedPercent);
+        });
+
+        fanRange.addEventListener('change', (event) => {
+            fanDragging = false;
+            scheduleFanCommand(Number(event.target.value), true);
         });
 
         // 窗帘预设按钮。
@@ -514,7 +565,7 @@
         });
 
         // 周期轮询状态。
-        setInterval(fetchStatus, 500);
+        setInterval(fetchStatus, 1000);
         // 页面加载后立即拉一次。
         fetchStatus();
     </script>

@@ -66,6 +66,7 @@ void CentralProcessor::loop()
 {
     // 网络层优先推进，保障 Web/MQTT 实时性。
     net_.loop();
+    commandProcessor_.loop();
 
     // 采样并推进发布节流状态。
     sensorDataProcessor_.loop();
@@ -75,10 +76,14 @@ void CentralProcessor::loop()
     automationEngine_.loop(sensorDataProcessor_.latest());
 
     // 轮询红外桥接上行消息。
-    String irPayload;
-    if (commandProcessor_.pollIrBridgeMessage(irPayload))
+    if (millis() - lastIrPollMs_ >= 20)
     {
-        publishStatus(nullptr, "ir_bridge_rx", irPayload);
+        lastIrPollMs_ = millis();
+        String irPayload;
+        if (commandProcessor_.pollIrBridgeMessage(irPayload))
+        {
+            publishStatus(nullptr, "ir_bridge_rx", irPayload);
+        }
     }
 }
 

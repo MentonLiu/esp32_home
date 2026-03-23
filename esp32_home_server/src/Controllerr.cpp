@@ -8,6 +8,7 @@ namespace
     // 常见直流电机驱动板在 1k-5kHz 区间兼容性更好。
     constexpr uint32_t kFanPwmFrequencyHz = 2000;
     constexpr uint8_t kFanPwmResolutionBits = 8;
+    constexpr unsigned long kCurtainServoHoldMs = 450;
 } // namespace
 
 RelayFanController::RelayFanController(uint8_t pin, uint8_t pwmChannel)
@@ -91,18 +92,35 @@ void DualCurtainController::begin()
     // 标准舵机 50Hz。
     servoA_.setPeriodHertz(50);
     servoB_.setPeriodHertz(50);
-    // 脉宽范围可按舵机型号调整（单位 us）。
-    servoA_.attach(pinA_, 500, 2400);
-    servoB_.attach(pinB_, 500, 2400);
     setAngle(0);
+}
+
+void DualCurtainController::loop()
+{
+    // 到位后释放 PWM，减小供电压力和“被其它负载带着抖”的概率。
+    if (attached_ && millis() - lastMotionMs_ >= kCurtainServoHoldMs)
+    {
+        servoA_.detach();
+        servoB_.detach();
+        attached_ = false;
+    }
 }
 
 void DualCurtainController::setAngle(uint8_t angle)
 {
+    if (!attached_)
+    {
+        // 仅在需要动作时重新占用定时资源。
+        servoA_.attach(pinA_, 500, 2400);
+        servoB_.attach(pinB_, 500, 2400);
+        attached_ = true;
+    }
+
     // 双舵机反向联动：A 正向，B 反向。
     currentAngle_ = constrain(angle, 0, 180);
     servoA_.write(currentAngle_);
     servoB_.write(180 - currentAngle_);
+    lastMotionMs_ = millis();
 }
 
 void DualCurtainController::setPresetLevel(uint8_t preset)
@@ -128,25 +146,38 @@ void BuzzerController::begin()
     ledcWriteTone(pwmChannel_, 0);
 }
 
+void BuzzerController::loop()
+{
+    if (segmentActive_ && millis() - segmentStartedMs_ >= activeSegment_.durationMs)
+    {
+        segmentActive_ = false;
+        ledcWriteTone(pwmChannel_, 0);
+        ledcWrite(pwmChannel_, 0);
+    }
+
+    if (segmentActive_ || queueHead_ == queueTail_)
+    {
+        return;
+    }
+
+    startSegment(queue_[queueHead_]);
+    queueHead_ = (queueHead_ + 1) % kQueueCapacity;
+}
+
 void BuzzerController::beep(uint16_t frequency, uint16_t durationMs)
 {
-    // 阻塞式蜂鸣：简单直观，适合短告警；复杂场景可改为非阻塞状态机。
-    // 显式设置占空比可提升无源蜂鸣器响度。
-    ledcWrite(pwmChannel_, 220);
-    ledcWriteTone(pwmChannel_, frequency);
-    delay(durationMs);
-    ledcWriteTone(pwmChannel_, 0);
-    ledcWrite(pwmChannel_, 0);
+    // 非阻塞入队，避免告警期间卡住 Web、自动化和网络栈。
+    enqueueSegment(frequency, durationMs);
 }
 
 void BuzzerController::patternShortShortLong()
 {
     // 火警提示节奏：短-短-长。
-    beep(2400, 220);
-    delay(120);
-    beep(2400, 220);
-    delay(120);
-    beep(1700, 700);
+    enqueueSegment(2400, 220);
+    enqueueSilence(120);
+    enqueueSegment(2400, 220);
+    enqueueSilence(120);
+    enqueueSegment(1700, 700);
 }
 
 IRController::IRController(uint8_t rxPin, uint8_t txPin, uint32_t baudRate)
@@ -202,4 +233,41 @@ bool IRController::sendLine(const String &line)
     serial_->println(line);
     lastCommand_ = line;
     return true;
+}
+
+void BuzzerController::startSegment(const Segment &segment)
+{
+    activeSegment_ = segment;
+    segmentStartedMs_ = millis();
+    segmentActive_ = true;
+
+    if (segment.frequency == 0 || segment.duty == 0)
+    {
+        ledcWriteTone(pwmChannel_, 0);
+        ledcWrite(pwmChannel_, 0);
+        return;
+    }
+
+    ledcWrite(pwmChannel_, segment.duty);
+    ledcWriteTone(pwmChannel_, segment.frequency);
+}
+
+bool BuzzerController::enqueueSegment(uint16_t frequency, uint16_t durationMs, uint8_t duty)
+{
+    const uint8_t nextTail = (queueTail_ + 1) % kQueueCapacity;
+    if (nextTail == queueHead_)
+    {
+        return false;
+    }
+
+    queue_[queueTail_].frequency = frequency;
+    queue_[queueTail_].durationMs = durationMs;
+    queue_[queueTail_].duty = duty;
+    queueTail_ = nextTail;
+    return true;
+}
+
+bool BuzzerController::enqueueSilence(uint16_t durationMs)
+{
+    return enqueueSegment(0, durationMs, 0);
 }

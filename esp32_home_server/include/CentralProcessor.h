@@ -42,6 +42,7 @@ private:
     ControllerCommandProcessor commandProcessor_;
     AutomationEngine automationEngine_;
     LocalProcessingProgram localProgram_;
+    unsigned long lastIrPollMs_ = 0;
 };
 
 #endif

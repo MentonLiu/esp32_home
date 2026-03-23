@@ -24,6 +24,12 @@ void ControllerCommandProcessor::begin(Stream &irBridgeSerial)
     refreshState();
 }
 
+void ControllerCommandProcessor::loop()
+{
+    buzzer_.loop();
+    curtain_.loop();
+}
+
 CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonText, CommandSource source)
 {
     CommandResult result;

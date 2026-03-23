@@ -157,14 +157,16 @@ void ConnectivityManager::connectStation(bool longWait)
 
     // 热点与联网并行模式下重连联网时保持热点在线。
     WiFi.mode(apStarted_ ? WIFI_AP_STA : WIFI_STA);
-    WiFi.begin(stationSsid_, stationPassword_);
-
-    const unsigned long timeoutMs = longWait ? 15000UL : 4000UL;
-    const unsigned long startMs = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - startMs < timeoutMs)
+    const unsigned long now = millis();
+    const unsigned long retryIntervalMs = longWait ? 15000UL : 4000UL;
+    if (stationConnectInProgress_ && now - lastStationConnectAttemptMs_ < retryIntervalMs)
     {
-        delay(200);
+        return;
     }
+
+    stationConnectInProgress_ = true;
+    lastStationConnectAttemptMs_ = now;
+    WiFi.begin(stationSsid_, stationPassword_);
 }
 
 void ConnectivityManager::evaluateMode()
@@ -178,6 +180,7 @@ void ConnectivityManager::evaluateMode()
     // 联网成功则进入云模式。
     if (isInternetConnected())
     {
+        stationConnectInProgress_ = false;
         stopLocalAp();
         mode_ = OperatingMode::Cloud;
         ensureMdnsState();

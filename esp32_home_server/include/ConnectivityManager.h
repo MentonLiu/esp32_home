@@ -95,8 +95,10 @@ private:
     OperatingMode mode_ = OperatingMode::LocalAP;
     bool apStarted_ = false;
     bool mdnsStarted_ = false;
+    bool stationConnectInProgress_ = false;
     unsigned long lastModeCheckMs_ = 0;
     unsigned long lastMqttRetryMs_ = 0;
+    unsigned long lastStationConnectAttemptMs_ = 0;
 
     // 供静态回调使用的全局单例指针。
     static ConnectivityManager *instance_;
