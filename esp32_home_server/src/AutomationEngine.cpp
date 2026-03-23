@@ -222,7 +222,7 @@ void AutomationEngine::handleSmokeAutomation(const StandardSensorData &sensorDat
     if (sensorData.mq2Percent >= 90 && millis() - lastHighSmokeBeepMs_ >= 1200)
     {
         lastHighSmokeBeepMs_ = millis();
-        commandProcessor_.beep(2600, 100);
+        commandProcessor_.beep(2400, 260);
     }
 }
 

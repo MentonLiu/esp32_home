@@ -33,6 +33,7 @@ bool DhtSensor::read(float &temperatureC, float &humidityPercent, String &error)
     return true;
 }
 
+// 模拟量传感器通过 ADC 读取并映射为百分比，支持反转与自定义最大值。
 AnalogPercentSensor::AnalogPercentSensor(uint8_t pin, bool inverted, uint16_t adcMax)
     : pin_(pin), inverted_(inverted), adcMax_(adcMax) {}
 

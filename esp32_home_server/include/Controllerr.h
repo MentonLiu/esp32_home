@@ -9,8 +9,9 @@
 
 #include "SystemContracts.h"
 
-// 风扇控制器：
-// 通过 LEDC PWM 控制风扇占空比，向上层暴露“模式 + 百分比”双接口。
+// 风扇控制器（历史命名保留为 RelayFanController）：
+// 实际实现是“直流电机 PWM 调速”，需要外部 MOSFET/电机驱动板，
+// 不能直接通过机械继电器实现速度控制。
 class RelayFanController
 {
 public:

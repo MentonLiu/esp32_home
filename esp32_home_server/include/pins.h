@@ -19,7 +19,8 @@ namespace pins
     static constexpr uint8_t FLAME_ANALOG = 6;
 
     // 执行器输出引脚。
-    // 风扇 PWM 输出。
+    // 风扇 PWM 输出（建议连接 ULN2003A 的 IN1）。
+    // 注意：不要和 IR 串口 RX 的 GPIO15 复用。
     static constexpr uint8_t FAN_PWM = 18;
     // 窗帘舵机 A 控制脚。
     static constexpr uint8_t CURTAIN_SERVO_A = 16;

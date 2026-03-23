@@ -3,6 +3,13 @@
 
 #include "Controllerr.h"
 
+namespace
+{
+    // 常见直流电机驱动板在 1k-5kHz 区间兼容性更好。
+    constexpr uint32_t kFanPwmFrequencyHz = 2000;
+    constexpr uint8_t kFanPwmResolutionBits = 8;
+} // namespace
+
 RelayFanController::RelayFanController(uint8_t pin, uint8_t pwmChannel)
     : pin_(pin), pwmChannel_(pwmChannel)
 {
@@ -10,10 +17,12 @@ RelayFanController::RelayFanController(uint8_t pin, uint8_t pwmChannel)
 
 void RelayFanController::begin()
 {
-    // 风扇使用 25kHz 8bit PWM，降低可闻噪声并保留足够调速粒度。
+    // 直流电机调速使用 LEDC PWM。
+    // 注意：该引脚应连接 MOSFET/驱动模块，不应直连机械继电器做调速。
     pinMode(pin_, OUTPUT);
-    ledcSetup(pwmChannel_, 25000, 8);
+    ledcSetup(pwmChannel_, kFanPwmFrequencyHz, kFanPwmResolutionBits);
     ledcAttachPin(pin_, pwmChannel_);
+    ledcWrite(pwmChannel_, 0);
     setMode(FanMode::Off);
 }
 
@@ -115,25 +124,29 @@ void BuzzerController::begin()
     // 蜂鸣器使用独立 PWM 通道，默认静音。
     ledcSetup(pwmChannel_, 2000, 8);
     ledcAttachPin(pin_, pwmChannel_);
+    ledcWrite(pwmChannel_, 0);
     ledcWriteTone(pwmChannel_, 0);
 }
 
 void BuzzerController::beep(uint16_t frequency, uint16_t durationMs)
 {
     // 阻塞式蜂鸣：简单直观，适合短告警；复杂场景可改为非阻塞状态机。
+    // 显式设置占空比可提升无源蜂鸣器响度。
+    ledcWrite(pwmChannel_, 220);
     ledcWriteTone(pwmChannel_, frequency);
     delay(durationMs);
     ledcWriteTone(pwmChannel_, 0);
+    ledcWrite(pwmChannel_, 0);
 }
 
 void BuzzerController::patternShortShortLong()
 {
     // 火警提示节奏：短-短-长。
-    beep(2400, 120);
-    delay(90);
-    beep(2400, 120);
-    delay(90);
-    beep(1700, 450);
+    beep(2400, 220);
+    delay(120);
+    beep(2400, 220);
+    delay(120);
+    beep(1700, 700);
 }
 
 IRController::IRController(uint8_t rxPin, uint8_t txPin, uint32_t baudRate)
