@@ -86,7 +86,6 @@ String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip
     doc["smokeLevel"] = latest_.smokeLevel;
     doc["flameDetected"] = latest_.flameDetected;
     doc["fanMode"] = fanModeToString(controllerState.fanMode);
-    doc["fanPowerOn"] = controllerState.fanPowerOn;
     doc["fanSpeedPercent"] = controllerState.fanSpeedPercent;
     doc["curtainAngle"] = controllerState.curtainAngle;
     doc["error"] = latest_.hasError;
@@ -107,7 +106,6 @@ String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip
     JsonObject controller = doc["controller"].to<JsonObject>();
     // 冗余一份 controller 子对象。
     controller["fanMode"] = fanModeToString(controllerState.fanMode);
-    controller["fanPowerOn"] = controllerState.fanPowerOn;
     controller["fanSpeedPercent"] = controllerState.fanSpeedPercent;
     controller["curtainAngle"] = controllerState.curtainAngle;
     if (controllerState.hasCurtainPreset)

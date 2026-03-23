@@ -20,8 +20,6 @@ void ControllerCommandProcessor::begin(Stream &irBridgeSerial)
     curtain_.begin();
     buzzer_.begin();
     ir_.begin(irBridgeSerial);
-    // 默认上电时风扇处于断电状态。
-    state_.fanPowerOn = false;
     // 读取一次真实状态，确保 state_ 和底层一致。
     refreshState();
 }
@@ -53,41 +51,12 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
     if (device == "fan")
     {
-        // fan 支持 power/mode/speedPercent 三种子命令组合。
+        // fan 支持 mode/speedPercent 两种子命令组合。
         bool handled = false;
-
-        const String power = doc["power"] | "";
-        if (power.length() > 0)
-        {
-            if (power == "on")
-            {
-                setFanPower(true);
-            }
-            else if (power == "off")
-            {
-                setFanPower(false);
-            }
-            else
-            {
-                // 非法电源命令。
-                result.type = "error";
-                result.message = "fan_power_invalid";
-                return result;
-            }
-            handled = true;
-        }
 
         const String mode = doc["mode"] | "";
         if (mode.length() > 0)
         {
-            // 防误操作：未通电时不允许切到非 off 档。
-            if (!isFanPowerOn() && mode != "off")
-            {
-                result.type = "error";
-                result.message = "fan_power_off";
-                return result;
-            }
-
             if (mode == "off")
             {
                 setFanMode(FanMode::Off);
@@ -116,14 +85,6 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
 
         if (!doc["speedPercent"].isNull())
         {
-            // 同样要求风扇已通电。
-            if (!isFanPowerOn())
-            {
-                result.type = "error";
-                result.message = "fan_power_off";
-                return result;
-            }
-
             setFanSpeedPercent(doc["speedPercent"].as<uint8_t>());
             handled = true;
         }
@@ -205,47 +166,15 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
     return result;
 }
 
-void ControllerCommandProcessor::setFanPower(bool powerOn)
-{
-    // 电源状态与风扇速度联动：断电则强制速度为 0。
-    state_.fanPowerOn = powerOn;
-    if (!powerOn)
-    {
-        fan_.setSpeedPercent(0);
-    }
-    else if (fan_.speedPercent() == 0)
-    {
-        // 上电时如果速度为 0，默认给低档，提升可感知性。
-        fan_.setMode(FanMode::Low);
-    }
-    refreshState();
-}
-
-bool ControllerCommandProcessor::isFanPowerOn() const
-{
-    return state_.fanPowerOn;
-}
-
 void ControllerCommandProcessor::setFanMode(FanMode mode)
 {
-    // Off 作为“断电语义”处理，保持状态一致。
-    if (mode == FanMode::Off)
-    {
-        state_.fanPowerOn = false;
-        fan_.setMode(FanMode::Off);
-        refreshState();
-        return;
-    }
-
-    state_.fanPowerOn = true;
+    // Off 档即停机，其它档位按映射速度输出。
     fan_.setMode(mode);
     refreshState();
 }
 
 void ControllerCommandProcessor::setFanSpeedPercent(uint8_t speedPercent)
 {
-    // 直接调速时隐式上电。
-    state_.fanPowerOn = true;
     fan_.setSpeedPercent(speedPercent);
     refreshState();
 }

@@ -24,10 +24,6 @@ public:
     // 解析并执行 JSON 控制命令。
     CommandResult processCommandJson(const String &jsonText, CommandSource source);
 
-    // 风扇电源开关（逻辑层）。
-    void setFanPower(bool powerOn);
-    // 查询风扇是否处于通电状态。
-    bool isFanPowerOn() const;
     // 通过档位设置风扇速度。
     void setFanMode(FanMode mode);
     // 通过百分比设置风扇速度。

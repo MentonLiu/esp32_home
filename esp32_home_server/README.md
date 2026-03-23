@@ -58,7 +58,7 @@
 
 ### `GET /api/status`
 
-返回当前模式、IP、传感器状态、风扇电源、风扇速度、窗帘角度和错误信息。
+返回当前模式、IP、传感器状态、风扇档位、风扇速度、窗帘角度和错误信息。
 
 示例：
 
@@ -73,7 +73,6 @@
   "smokeLevel": "green",
   "flameDetected": false,
   "fanMode": "off",
-  "fanPowerOn": false,
   "fanSpeedPercent": 0,
   "curtainAngle": 90,
   "error": false,
@@ -97,11 +96,11 @@
 控制命令示例：
 
 ```json
-{"device":"fan","power":"on"}
+{"device":"fan","mode":"off"}
 ```
 
 ```json
-{"device":"fan","power":"off"}
+{"device":"fan","mode":"high"}
 ```
 
 ```json
@@ -142,7 +141,7 @@
 
 ### 功能能力
 
-- 支持：开关控制、单方向 PWM 调速、自动化调速
+- 支持：模式控制、单方向 PWM 调速、自动化调速
 - 不支持：反转（需要 H 桥驱动）
 
 ### 重要说明

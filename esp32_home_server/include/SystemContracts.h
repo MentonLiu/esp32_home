@@ -63,8 +63,6 @@ struct ControllerState
 {
     // 风扇档位（Off/Low/Medium/High）。
     FanMode fanMode = FanMode::Off;
-    // 风扇电源逻辑状态（和速度分开）。
-    bool fanPowerOn = false;
     // 风扇速度百分比。
     uint8_t fanSpeedPercent = 0;
     // 窗帘当前角度（0-180）。

@@ -195,7 +195,6 @@ void AutomationEngine::handleTemperatureAutomation(const StandardSensorData &sen
         {
             lastTempFanActionMs_ = millis();
             tempFanBoostActive_ = true;
-            commandProcessor_.setFanPower(true);
             commandProcessor_.setFanMode(FanMode::High);
             publishStatus(mqtt_upstream::statusTopic(), "automation", "fan_high_by_temperature");
         }
@@ -214,7 +213,6 @@ void AutomationEngine::handleSmokeAutomation(const StandardSensorData &sensorDat
     // 烟雾达到阈值时自动打开风扇并设为高档。
     if (sensorData.mq2Percent >= 75)
     {
-        commandProcessor_.setFanPower(true);
         commandProcessor_.setFanMode(FanMode::High);
     }
 

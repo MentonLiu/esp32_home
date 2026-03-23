@@ -320,7 +320,7 @@
                 <section class="panel">
                     <div class="title-row">
                         <h2>系统状态</h2>
-                        <span class="tiny" id="fanPowerText">风扇电源关闭</span>
+                        <span class="tiny" id="fanModeText">风扇档位 off</span>
                     </div>
                     <div class="status-banner">
                         <strong id="systemHeadline">系统已待命</strong>
@@ -360,8 +360,7 @@
                     </div>
                     <div class="controls">
                         <div class="button-row">
-                            <button id="fanPowerOnBtn">开机</button>
-                            <button id="fanPowerOffBtn" class="danger">关机</button>
+                            <button data-fan-mode="off" class="danger">关</button>
                             <button data-fan-mode="low">弱</button>
                             <button data-fan-mode="medium" class="secondary">中</button>
                             <button data-fan-mode="high" class="warn">强</button>
@@ -450,7 +449,7 @@
                 document.getElementById('curtainRangeValue').textContent = `${data.curtainAngle}°`;
                 document.getElementById('fanSpeedText').textContent = `速度 ${data.fanSpeedPercent}%`;
                 document.getElementById('fanRangeValue').textContent = `${data.fanSpeedPercent}%`;
-                document.getElementById('fanPowerText').textContent = data.fanPowerOn ? '风扇电源开启' : '风扇电源关闭';
+                document.getElementById('fanModeText').textContent = `风扇档位 ${data.fanMode || '--'}`;
 
                 // 把后端状态回写到滑条，确保 UI 同步。
                 curtainRange.value = data.curtainAngle;
@@ -464,7 +463,7 @@
                         : data.mode === 'cloud'
                             ? '系统运行在路由器联网模式'
                             : '系统运行在本地热点模式';
-                const details = `风扇电源 ${data.fanPowerOn ? '开' : '关'} · 风扇 ${data.fanSpeedPercent}% · 窗帘 ${data.curtainAngle}°`;
+                const details = `风扇档位 ${data.fanMode || '--'} · 风扇 ${data.fanSpeedPercent}% · 窗帘 ${data.curtainAngle}°`;
 
                 document.getElementById('systemHeadline').textContent = headline;
                 document.getElementById('systemDetails').textContent = details;
@@ -499,10 +498,6 @@
                 sendCommand({ device: 'curtain', preset: Number(button.dataset.curtainPreset) }, '窗帘预设控制');
             });
         });
-
-        // 风扇开关按钮。
-        document.getElementById('fanPowerOnBtn').addEventListener('click', () => sendCommand({ device: 'fan', power: 'on' }, '风扇开机'));
-        document.getElementById('fanPowerOffBtn').addEventListener('click', () => sendCommand({ device: 'fan', power: 'off' }, '风扇关机'));
 
         // 风扇模式按钮。
         document.querySelectorAll('[data-fan-mode]').forEach((button) => {
