@@ -42,7 +42,7 @@ void CentralProcessor::begin()
     delay(100); // 等待串口初始化完毕
 
     LOG_INFO("SYSTEM", "=== ESP32 Home Server 启动 ===");
-    LOG_INFO("SYSTEM", "编译时间: %s %s", __DATE__, __TIME__);
+    LOG_INFO("SYSTEM", "编译时间: %s", __TIME__);
 
     // 1) 先起传感器链路，保证后续状态接口有数据。
     LOG_INFO("INIT", "初始化传感器...");

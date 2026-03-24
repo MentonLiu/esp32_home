@@ -1,11 +1,19 @@
 // 文件说明：esp32_home_server/include/AutomationEngine.h
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+// 自动化引擎模块声明，负责按时间与传感器状态驱动执行器联动。
+//
+// 已实现的自动化操作：
+// 1) 每日定时窗帘：07:00 自动开到预设档位，22:00 自动关闭。
+// 2) 温度联动风扇：高温自动切高档，温度回落后退出高温增强状态。
+// 3) 烟雾联动：烟雾达到阈值自动开高档风扇，并在高危区间周期性蜂鸣提醒。
+// 4) 光照联动窗帘：白天按亮度自动防眩/补光，带手动优先与动作冷却机制。
+// 5) 火焰联动告警：持续检测到火焰后触发本地告警模式，并在云模式下上报远端告警。
+// 6) 时间源管理：优先使用 NTP，失败时回退到编译时刻+运行时长，保障离线定时可用。
 
 #ifndef AUTOMATION_ENGINE_H
 #define AUTOMATION_ENGINE_H
 
 #include <Arduino.h>
-#include <RTClib.h>
+#include <time.h>
 
 #include "ConnectivityManager.h"
 #include "ControllerCommandProcessor.h"
@@ -20,7 +28,7 @@ public:
                      ControllerCommandProcessor &commandProcessor,
                      StatusReporter statusReporter);
 
-    // 初始化时间源（NTP/RTC）与自动化基础状态。
+    // 初始化时间源（NTP）与自动化基础状态。
     void begin();
     // 周期性执行自动化规则。
     void loop(const StandardSensorData &sensorData);
@@ -28,18 +36,16 @@ public:
 private:
     // 联网后配置 NTP 时间服务。
     void ensureTimeSource();
-    // 在 NTP 可用时将时间同步到 RTC，提升离线可用性。
-    void syncRtcFromNtp();
-    // 统一当前时间来源：NTP -> RTC -> 编译时回退时钟。
-    DateTime currentTime();
+    // 统一当前时间来源：NTP -> 编译时回退时钟。
+    time_t currentTime();
     // 每日定时窗帘规则。
-    void handleCurtainSchedule(const DateTime &now);
+    void handleCurtainSchedule(time_t nowEpoch);
     // 温度联动风扇规则。
     void handleTemperatureAutomation(const StandardSensorData &sensorData);
     // 烟雾浓度联动规则。
     void handleSmokeAutomation(const StandardSensorData &sensorData);
     // 光照联动窗帘规则。
-    void handleLightAutomation(const StandardSensorData &sensorData, const DateTime &now);
+    void handleLightAutomation(const StandardSensorData &sensorData, time_t nowEpoch);
     // 火焰告警联动规则。
     void handleFlameAutomation(const StandardSensorData &sensorData);
     // 统一状态/告警消息上报入口。
@@ -49,16 +55,10 @@ private:
     ControllerCommandProcessor &commandProcessor_;
     StatusReporter statusReporter_;
 
-    // DS3231 RTC 实例（I2C）。
-    RTC_DS3231 rtc_;
-    // RTC 硬件是否可用。
-    bool rtcAvailable_ = false;
     // 是否已配置 NTP。
     bool ntpConfigured_ = false;
-    // 是否已完成 NTP -> RTC 一次同步。
-    bool rtcSyncedFromNtp_ = false;
-    // 回退时间基准：当 NTP 与 RTC 都不可用时使用。
-    DateTime fallbackBaseTime_;
+    // 回退时间基准：当 NTP 不可用时使用。
+    time_t fallbackBaseEpoch_ = 0;
     unsigned long fallbackBaseMillis_ = 0;
 
     // 限流与去重状态。

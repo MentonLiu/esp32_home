@@ -35,6 +35,9 @@ void LocalProcessingProgram::setupRoutes()
     // 首页：返回 LittleFS 中的控制页面。
     net_.webServer().on("/", HTTP_GET, [this]()
                         {
+        net_.webServer().sendHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+        net_.webServer().sendHeader("Pragma", "no-cache");
+        net_.webServer().sendHeader("Expires", "0");
         if (!serveFile("/index.html", "text/html; charset=utf-8"))
         {
             net_.webServer().send(503, "text/plain", "index.html unavailable");
@@ -42,7 +45,11 @@ void LocalProcessingProgram::setupRoutes()
 
     // 状态接口：返回完整系统状态 JSON。
     net_.webServer().on("/api/status", HTTP_GET, [this]()
-                        { net_.webServer().send(200,
+                        {
+        net_.webServer().sendHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+        net_.webServer().sendHeader("Pragma", "no-cache");
+        net_.webServer().sendHeader("Expires", "0");
+        net_.webServer().send(200,
                                                 "application/json",
                                                 sensorDataProcessor_.buildStatusJson(net_.mode(),
                                                                                      net_.ipString(),

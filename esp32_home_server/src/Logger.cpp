@@ -19,14 +19,16 @@ void Logger::begin()
 
 void Logger::vlog(Level level, const char *tag, const char *format, va_list args)
 {
-    // 格式：[时间] [级别] [标签] 消息
+    // 格式：[HH:MM:SS] [级别] [标签] 消息
     char buffer[kLogBufferSize];
     unsigned long ms = millis();
     unsigned long sec = ms / 1000;
-    unsigned long ms_part = ms % 1000;
+    unsigned long hour = (sec / 3600) % 24;
+    unsigned long minute = (sec / 60) % 60;
+    unsigned long second = sec % 60;
 
     // 打印时间戳和级别
-    snprintf(buffer, kLogBufferSize, "[%lu.%03lu] [%s] [%s] ", sec, ms_part, levelName(level), tag);
+    snprintf(buffer, kLogBufferSize, "[%02lu:%02lu:%02lu] [%s] [%s] ", hour, minute, second, levelName(level), tag);
     Serial.print(buffer);
 
     // 打印格式化消息
