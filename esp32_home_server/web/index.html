@@ -320,7 +320,6 @@
                 <section class="panel">
                     <div class="title-row">
                         <h2>系统状态</h2>
-                        <span class="tiny" id="fanModeText">风扇档位 off</span>
                     </div>
                     <div class="status-banner">
                         <strong id="systemHeadline">系统已待命</strong>
@@ -360,7 +359,7 @@
                     </div>
                     <div class="controls">
                         <div class="button-row">
-                            <button data-fan-mode="off" class="danger">关</button>
+                            <button data-fan-mode="off" class="danger">关机</button>
                             <button data-fan-mode="low">弱</button>
                             <button data-fan-mode="medium" class="secondary">中</button>
                             <button data-fan-mode="high" class="warn">强</button>
@@ -371,6 +370,8 @@
                         </div>
                     </div>
                 </section>
+
+
 
                 <!-- 右列：红外桥接控制 -->
                 <section class="panel">
@@ -458,7 +459,6 @@
                 document.getElementById('curtainRangeValue').textContent = `${data.curtainAngle}°`;
                 document.getElementById('fanSpeedText').textContent = `速度 ${data.fanSpeedPercent}%`;
                 document.getElementById('fanRangeValue').textContent = `${data.fanSpeedPercent}%`;
-                document.getElementById('fanModeText').textContent = `风扇档位 ${data.fanMode || '--'}`;
 
                 // 把后端状态回写到滑条，确保 UI 同步。
                 if (!curtainDragging) {
@@ -476,7 +476,7 @@
                         : data.mode === 'cloud'
                             ? '系统运行在路由器联网模式'
                             : '系统运行在本地热点模式';
-                const details = `风扇档位 ${data.fanMode || '--'} · 风扇 ${data.fanSpeedPercent}% · 窗帘 ${data.curtainAngle}°`;
+                const details = `风扇 ${data.fanSpeedPercent}% · 窗帘 ${data.curtainAngle}°`;
 
                 document.getElementById('systemHeadline').textContent = headline;
                 document.getElementById('systemDetails').textContent = details;
@@ -550,7 +550,7 @@
             });
         });
 
-        // 风扇模式按钮。
+        // 风扇模式按钮（对应后端 fan.mode: off/low/medium/high）。
         document.querySelectorAll('[data-fan-mode]').forEach((button) => {
             button.addEventListener('click', () => {
                 sendCommand({ device: 'fan', mode: button.dataset.fanMode }, '风扇模式控制');

@@ -4,6 +4,7 @@
 #include "CentralProcessor.h"
 
 #include "pins.h"
+#include "Logger.h"
 
 namespace
 {
@@ -19,7 +20,7 @@ namespace
 
 CentralProcessor::CentralProcessor()
     : sensorHub_(pins::DHT_DATA, pins::LIGHT_ANALOG, pins::MQ2_ANALOG, pins::FLAME_ANALOG),
-      fan_(pins::FAN_PWM, 4),
+      fan_(pins::FAN_PWM, 5),
       curtain_(pins::CURTAIN_SERVO_A, pins::CURTAIN_SERVO_B),
       buzzer_(pins::BUZZER),
       ir_(pins::IR_BRIDGE_UART_RX, pins::IR_BRIDGE_UART_TX, pins::IR_BRIDGE_UART_BAUD),
@@ -42,24 +43,40 @@ void CentralProcessor::begin()
 {
     // 串口主要用于日志与调试输出。
     Serial.begin(115200);
+    delay(100); // 等待串口初始化完毕
+
+    LOG_INFO("SYSTEM", "=== ESP32 Home Server 启动 ===");
+    LOG_INFO("SYSTEM", "编译时间: %s %s", __DATE__, __TIME__);
 
     // 1) 先起传感器链路，保证后续状态接口有数据。
+    LOG_INFO("INIT", "初始化传感器...");
     sensorDataProcessor_.begin();
+    LOG_INFO("INIT", "传感器初始化完成");
 
     // 2) 初始化红外桥接串口与所有执行器。
+    LOG_INFO("INIT", "初始化执行器...");
     gIrBridgeSerial.begin(ir_.baudRate(), SERIAL_8N1, pins::IR_BRIDGE_UART_RX, pins::IR_BRIDGE_UART_TX);
+    LOG_INFO("INIT", "红外桥接 UART 启动 (RX=%d, TX=%d, Baud=%ld)", pins::IR_BRIDGE_UART_RX, pins::IR_BRIDGE_UART_TX, ir_.baudRate());
     commandProcessor_.begin(gIrBridgeSerial);
+    LOG_INFO("INIT", "执行器初始化完成");
+    LOG_INFO("INIT", "电机 LEDC 通道: 5, 舵机: auto, 蜂鸣器 LEDC 通道: 6");
 
     // 3) 启动网络与网页服务。
+    LOG_INFO("INIT", "初始化网络...");
     net_.begin();
+    LOG_INFO("INIT", "网络初始化完成");
 
     // MQTT 方案尚未定稿，本轮先不启用实际链路。
     // net_.configureCloudMqtt(...);
     // net_.setMqttHandler(...);
 
     // 4) 启动自动化和本地业务程序。
+    LOG_INFO("INIT", "启动自动化引擎...");
     automationEngine_.begin();
+    LOG_INFO("INIT", "启动本地程序...");
     localProgram_.begin();
+
+    LOG_INFO("SYSTEM", "=== 启动完成，系统就绪 ===");
 }
 
 void CentralProcessor::loop()

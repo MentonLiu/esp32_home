@@ -4,6 +4,7 @@
 #include "Sensor.h"
 
 #include <math.h>
+#include "Logger.h"
 
 namespace
 {
@@ -17,6 +18,7 @@ void DhtSensor::begin()
 {
     // DHT 库内部会完成引脚与时序初始化。
     dht_.begin();
+    LOG_INFO("DHT", "DHT 传感器初始化完成");
 }
 
 bool DhtSensor::read(float &temperatureC, float &humidityPercent, String &error)
@@ -27,6 +29,13 @@ bool DhtSensor::read(float &temperatureC, float &humidityPercent, String &error)
     if (isnan(temperatureC) || isnan(humidityPercent))
     {
         error = "dht_read_failed";
+        static unsigned long lastWarnTime = 0;
+        // 每10秒输出一次警告，避免日志刷屏
+        if (millis() - lastWarnTime > 10000)
+        {
+            LOG_WARN("DHT", "读取失败 - 请检查: 1) DHT11接线 2) 电源和GND是否正确连接 3) 数据线是否有上拉电阻(4.7kΩ)");
+            lastWarnTime = millis();
+        }
         return false;
     }
 
@@ -73,10 +82,16 @@ SensorHub::SensorHub(uint8_t dhtPin,
 void SensorHub::begin()
 {
     // 一次性初始化全部硬件通道。
+    LOG_INFO("SENSOR", "初始化传感器集群...");
     dht_.begin();
+    LOG_DEBUG("SENSOR", "DHT初始化完成");
     light_.begin();
+    LOG_DEBUG("SENSOR", "光照传感器初始化完成");
     mq2_.begin();
+    LOG_DEBUG("SENSOR", "MQ2烟雾传感器初始化完成");
     flame_.begin();
+    LOG_DEBUG("SENSOR", "火焰传感器初始化完成");
+    LOG_INFO("SENSOR", "所有传感器已就绪");
 }
 
 bool SensorHub::poll(unsigned long intervalMs)
@@ -101,6 +116,7 @@ bool SensorHub::poll(unsigned long intervalMs)
         // DHT 失败属于可恢复错误，不影响其它传感器继续采样。
         latest_.hasError = true;
         latest_.errorMessage = error;
+        LOG_WARN("SENSOR", "DHT 读取失败，温度/湿度将保持前一次读值");
     }
 
     latest_.lightPercent = light_.readPercent();
@@ -118,9 +134,22 @@ bool SensorHub::poll(unsigned long intervalMs)
     else if (flamePercent >= kFlameOnThresholdPercent)
     {
         flameDetectedState_ = true;
+        LOG_WARN("SENSOR", "火焰传感器触发！ 浓度: %d%%", flamePercent);
     }
 
     latest_.flameDetected = flameDetectedState_;
+
+    // 每30秒输出一次完整的传感器状态
+    static unsigned long lastDebugLogMs = 0;
+    if (now - lastDebugLogMs > 30000)
+    {
+        LOG_DEBUG("SENSOR", "传感器状态: T=%.1f°C H=%.1f%% 光=%d%% MQ2=%d%% 烟=%s 火=%s",
+                  latest_.temperatureC, latest_.humidityPercent,
+                  latest_.lightPercent, latest_.mq2Percent,
+                  latest_.smokeLevel.c_str(), flameDetectedState_ ? "YES" : "NO");
+        lastDebugLogMs = now;
+    }
+
     return true;
 }
 
