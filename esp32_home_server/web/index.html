@@ -265,7 +265,6 @@
             <div class="hero-top">
                 <div>
                     <h1>ESP32 智能家居服务端</h1>
-                    <p class="sub">当前页面只保留服务端控制与状态展示。项目结构说明已经移到仓库根目录，红外控制也改成了给 ESP8266 发送字符串命令。</p>
                 </div>
                 <!-- 运行状态徽章 -->
                 <div class="hero-badges">
@@ -359,7 +358,7 @@
                     </div>
                     <div class="controls">
                         <div class="button-row">
-                            <button data-fan-mode="off" class="danger">关机</button>
+                            <button id="fanStop" class="danger">停止</button>
                             <button data-fan-mode="low">弱</button>
                             <button data-fan-mode="medium" class="secondary">中</button>
                             <button data-fan-mode="high" class="warn">强</button>
@@ -502,12 +501,18 @@
         }
 
         function scheduleFanCommand(speedPercent, immediate = false) {
+            if (!Number.isFinite(speedPercent)) {
+                document.getElementById('actionLog').textContent = '风扇速度参数无效，已忽略';
+                return;
+            }
+
+            const boundedSpeed = Math.max(0, Math.min(100, Math.round(speedPercent)));
             const now = Date.now();
             const waitMs = immediate || now - lastFanSentAt >= 90 ? 0 : 90 - (now - lastFanSentAt);
             clearTimeout(pendingFanTimer);
             pendingFanTimer = setTimeout(() => {
                 lastFanSentAt = Date.now();
-                sendCommand({ device: 'fan', speedPercent }, '风扇速度调整');
+                sendCommand({ device: 'fan', speedPercent: boundedSpeed }, '风扇速度调整');
             }, waitMs);
         }
 
@@ -550,10 +555,24 @@
             });
         });
 
-        // 风扇模式按钮（对应后端 fan.mode: off/low/medium/high）。
+        // 风扇停止按钮（直接设速度为 0%）。
+        const fanStopBtn = document.getElementById('fanStop');
+        if (fanStopBtn) {
+            fanStopBtn.addEventListener('click', () => {
+                sendCommand({ device: 'fan', speedPercent: 0 }, '风扇停止');
+            });
+        }
+
+        // 风扇模式按钮（对应后端 fan.mode: low/medium/high）。
         document.querySelectorAll('[data-fan-mode]').forEach((button) => {
             button.addEventListener('click', () => {
-                sendCommand({ device: 'fan', mode: button.dataset.fanMode }, '风扇模式控制');
+                const mode = button.dataset.fanMode;
+                const validModes = ['low', 'medium', 'high'];
+                if (!validModes.includes(mode)) {
+                    document.getElementById('actionLog').textContent = '风扇模式参数无效，已忽略';
+                    return;
+                }
+                sendCommand({ device: 'fan', mode }, '风扇模式控制');
             });
         });
 

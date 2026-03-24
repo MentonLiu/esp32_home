@@ -6,6 +6,7 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
+#include "Logger.h"
 #include "MqttUpstream.h"
 
 LocalProcessingProgram::LocalProcessingProgram(ConnectivityManager &net,
@@ -53,6 +54,11 @@ void LocalProcessingProgram::setupRoutes()
         // WebServer 的 plain 参数中保存原始请求体。
         const String requestBody = net_.webServer().arg("plain");
         const CommandResult result = commandProcessor_.processCommandJson(requestBody, CommandSource::LocalWeb);
+
+        if (!result.accepted)
+        {
+            LOG_WARN("HTTP", "control rejected: %s, body=%s", result.message.c_str(), requestBody.c_str());
+        }
 
         if (statusReporter_)
         {

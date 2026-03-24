@@ -24,13 +24,18 @@ ConnectivityManager::ConnectivityManager(const char *stationSsid,
 
 void ConnectivityManager::begin()
 {
-    // 先以联网模式启动，并开启自动重连。
-    WiFi.mode(WIFI_STA);
+    // 本地优先：先启用 AP+STA，确保本地控制面可第一时间可用。
+    WiFi.mode(WIFI_AP_STA);
     WiFi.setAutoReconnect(true);
     mqttClient_.setCallback(ConnectivityManager::handleMqttDispatch);
 
-    connectStation(true);
-    // 根据连接结果决定 cloud/local_ap。
+    // 启动本地热点，随后再异步尝试连家庭路由器。
+    startLocalAp();
+    mode_ = OperatingMode::LocalAP;
+
+    // 非阻塞发起 STA 连接，避免启动阶段长时间不可控。
+    connectStation(false);
+    // 根据当前连接结果决定是否切到 cloud/local_ap。
     evaluateMode();
 }
 
