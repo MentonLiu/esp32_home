@@ -9,7 +9,7 @@
 - `Sensor.h`
   传感器采样接口。
 - `Controllerr.h`
-  风扇、窗帘、蜂鸣器、红外桥接接口。
+  风扇、窗帘、蜂鸣器接口。
 - `SensorDataProcessor.h`
   原始采样到状态载荷的标准化层。
 - `ControllerCommandProcessor.h`

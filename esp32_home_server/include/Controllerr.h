@@ -110,41 +110,4 @@ private:
     Segment activeSegment_;
 };
 
-// 红外桥接上行数据。
-struct IRDecodedSignal
-{
-    bool available = false;
-    String payload;
-};
-
-// 红外桥接控制器：
-// 本模块不关心红外编码细节，只转发字符串到外部 ESP8266。
-class IRController
-{
-public:
-    IRController(uint8_t rxPin, uint8_t txPin, uint32_t baudRate);
-
-    // 注入串口流对象（通常为 HardwareSerial）。
-    void begin(Stream &serial);
-    // 发送文本命令到桥接端。
-    bool sendTextCommand(const String &commandText);
-    // 非阻塞读取桥接回传文本。
-    IRDecodedSignal receive();
-
-    // 查询串口波特率。
-    uint32_t baudRate() const;
-    // 最近一次成功下发的命令。
-    String lastCommand() const;
-
-private:
-    // 统一行发送实现，自动追加换行。
-    bool sendLine(const String &line);
-
-    Stream *serial_ = nullptr;
-    uint8_t rxPin_;
-    uint8_t txPin_;
-    uint32_t baudRate_;
-    String lastCommand_;
-};
-
 #endif

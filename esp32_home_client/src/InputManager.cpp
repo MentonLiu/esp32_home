@@ -16,10 +16,6 @@ namespace
 
 void InputManager::begin()
 {
-    pinMode(client_config::kKey1Pin, INPUT_PULLUP);
-    pinMode(client_config::kKey2Pin, INPUT_PULLUP);
-    pinMode(client_config::kKey3Pin, INPUT_PULLUP);
-    pinMode(client_config::kKey4Pin, INPUT_PULLUP);
     pinMode(client_config::kFanPowerButtonPin, INPUT_PULLUP);
     pinMode(client_config::kEncoderButtonPin, INPUT_PULLUP);
     pinMode(client_config::kEncoderPinA, INPUT);
@@ -33,26 +29,6 @@ bool InputManager::nextEvent(InputEvent &event)
 {
     event = {};
 
-    if (readButtonPressed(client_config::kKey1Pin, key1Pressed_, key1RawState_, key1ChangeMs_))
-    {
-        event.type = InputEventType::Key1;
-        return true;
-    }
-    if (readButtonPressed(client_config::kKey2Pin, key2Pressed_, key2RawState_, key2ChangeMs_))
-    {
-        event.type = InputEventType::Key2;
-        return true;
-    }
-    if (readButtonPressed(client_config::kKey3Pin, key3Pressed_, key3RawState_, key3ChangeMs_))
-    {
-        event.type = InputEventType::Key3;
-        return true;
-    }
-    if (readButtonPressed(client_config::kKey4Pin, key4Pressed_, key4RawState_, key4ChangeMs_))
-    {
-        event.type = InputEventType::Key4;
-        return true;
-    }
     if (readButtonPressed(client_config::kFanPowerButtonPin,
                           fanPowerButtonPressed_,
                           fanPowerButtonRawState_,

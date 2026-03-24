@@ -7,19 +7,17 @@
 
 ControllerCommandProcessor::ControllerCommandProcessor(RelayFanController &fan,
                                                        DualCurtainController &curtain,
-                                                       BuzzerController &buzzer,
-                                                       IRController &ir)
-    : fan_(fan), curtain_(curtain), buzzer_(buzzer), ir_(ir)
+                                                       BuzzerController &buzzer)
+    : fan_(fan), curtain_(curtain), buzzer_(buzzer)
 {
 }
 
-void ControllerCommandProcessor::begin(Stream &irBridgeSerial)
+void ControllerCommandProcessor::begin()
 {
-    // 执行器初始化顺序：先风扇与窗帘，再蜂鸣器与红外桥接。
+    // 执行器初始化顺序：先风扇与窗帘，再蜂鸣器。
     fan_.begin();
     curtain_.begin();
     buzzer_.begin();
-    ir_.begin(irBridgeSerial);
     // 读取一次真实状态，确保 state_ 和底层一致。
     refreshState();
 }
@@ -146,27 +144,6 @@ CommandResult ControllerCommandProcessor::processCommandJson(const String &jsonT
         return result;
     }
 
-    if (device == "ir")
-    {
-        // 红外桥接仅接收 command 文本。
-        const String command = doc["command"] | "";
-        if (command.length() == 0)
-        {
-            result.type = "error";
-            result.message = "ir_command_missing";
-            return result;
-        }
-
-        const bool ok = ir_.sendTextCommand(command);
-        // 发送后刷新状态，以便记录 lastIrCommand。
-        refreshState();
-        result.accepted = ok;
-        result.stateChanged = ok;
-        result.type = ok ? sourceType(source) : "error";
-        result.message = ok ? "ir_command_sent" : "ir_command_failed";
-        return result;
-    }
-
     result.type = "error";
     result.message = "unknown_device";
     return result;
@@ -212,31 +189,6 @@ void ControllerCommandProcessor::playFireAlarmPattern()
     buzzer_.patternShortShortLong();
 }
 
-bool ControllerCommandProcessor::sendIrCommand(const String &commandText)
-{
-    if (commandText.length() == 0)
-    {
-        return false;
-    }
-
-    const bool ok = ir_.sendTextCommand(commandText);
-    refreshState();
-    return ok;
-}
-
-bool ControllerCommandProcessor::pollIrBridgeMessage(String &payload)
-{
-    // 非阻塞轮询：无消息时快速返回。
-    const IRDecodedSignal signal = ir_.receive();
-    if (!signal.available)
-    {
-        return false;
-    }
-
-    payload = signal.payload;
-    return true;
-}
-
 const ControllerState &ControllerCommandProcessor::state() const
 {
     return state_;
@@ -253,7 +205,6 @@ void ControllerCommandProcessor::refreshState()
     state_.fanMode = fan_.mode();
     state_.fanSpeedPercent = fan_.speedPercent();
     state_.curtainAngle = curtain_.angle();
-    state_.lastIrCommand = ir_.lastCommand();
 }
 
 const char *ControllerCommandProcessor::sourceType(CommandSource source) const

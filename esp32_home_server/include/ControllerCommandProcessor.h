@@ -10,17 +10,16 @@
 #include "SystemContracts.h"
 
 // 控制指令处理器：
-// 负责把 JSON 命令路由到风扇/窗帘/蜂鸣器/红外控制器，并维护统一状态。
+// 负责把 JSON 命令路由到风扇/窗帘/蜂鸣器控制器，并维护统一状态。
 class ControllerCommandProcessor
 {
 public:
     ControllerCommandProcessor(RelayFanController &fan,
                                DualCurtainController &curtain,
-                               BuzzerController &buzzer,
-                               IRController &ir);
+                               BuzzerController &buzzer);
 
-    // 初始化所有执行器，并绑定红外桥接串口。
-    void begin(Stream &irBridgeSerial);
+    // 初始化所有执行器。
+    void begin();
     // 推进执行器内部的非阻塞状态机。
     void loop();
     // 解析并执行 JSON 控制命令。
@@ -38,11 +37,6 @@ public:
     void beep(uint16_t frequency, uint16_t durationMs);
     // 触发火警蜂鸣模式。
     void playFireAlarmPattern();
-    // 直接下发红外桥接命令，供自动化规则调用。
-    bool sendIrCommand(const String &commandText);
-
-    // 轮询红外桥接回传消息。
-    bool pollIrBridgeMessage(String &payload);
     // 获取当前控制器状态快照。
     const ControllerState &state() const;
     // 最近一次手动窗帘控制时间戳（毫秒）。
@@ -57,7 +51,6 @@ private:
     RelayFanController &fan_;
     DualCurtainController &curtain_;
     BuzzerController &buzzer_;
-    IRController &ir_;
     ControllerState state_;
     unsigned long lastManualCurtainCommandMs_ = 0;
 };

@@ -8,9 +8,8 @@
 
 - 自动连接 `iPadmini` 或服务端热点 `esp32-server`
 - 通过 HTTP 轮询服务端 `/api/status`
-- 通过 HTTP 向服务端 `/api/control` 下发窗帘、风扇、红外命令
+- 通过 HTTP 向服务端 `/api/control` 下发窗帘、风扇命令
 - 使用 RGB 灯显示烟雾安全等级
-- 使用 4 个按键发送红外字符串命令
 - 使用旋钮默认控制窗帘，按下切换到风扇模式
 - 使用独立按钮控制风扇电源开关
 - LCD1602 作为当前有效显示器
@@ -43,17 +42,9 @@
 
 ## 输入映射
 
-- `key1`：发送 `ac_power`
-- `key2`：发送 `ac_temp_up`
-- `key3`：发送 `ac_temp_down`
-- `key4`：发送 `ac_mode`
 - 旋钮旋转：默认调窗帘角度
 - 旋钮按下：切换窗帘/风扇控制模式
 - 独立风扇按钮：切换风扇电源开关
-
-说明：
-
-- 当前四个红外命令在 [ClientConfig.h](include/ClientConfig.h) 中是字符串命令，由服务端串口转发给 ESP8266。
 
 ## 显示策略
 
@@ -68,7 +59,6 @@
 - TFT SPI：`18/23/5/17/16/4`
 - LCD1602 I2C：`21/22`
 - RGB：`27/14/15`
-- 红外快捷键：`32/33/25/26`
 - 编码器：`34/35/13`
 - 风扇电源按钮：见 [ClientConfig.h](include/ClientConfig.h)
 

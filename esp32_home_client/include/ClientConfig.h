@@ -55,11 +55,6 @@ namespace client_config
     constexpr uint8_t kRgbGreenPin = 14;
     constexpr uint8_t kRgbBluePin = 15;
 
-    // 四个红外快捷键。
-    constexpr uint8_t kKey1Pin = 32;
-    constexpr uint8_t kKey2Pin = 33;
-    constexpr uint8_t kKey3Pin = 25;
-    constexpr uint8_t kKey4Pin = 26;
     constexpr uint8_t kFanPowerButtonPin = 19;
 
     // 旋钮编码器 A/B 与按键。
@@ -67,11 +62,6 @@ namespace client_config
     constexpr uint8_t kEncoderPinB = 35;
     constexpr uint8_t kEncoderButtonPin = 13;
 
-    // 红外桥目前只需要向服务端发送字符串命令。
-    constexpr const char *kIrPowerCommand = "ac_power";
-    constexpr const char *kIrTempUpCommand = "ac_temp_up";
-    constexpr const char *kIrTempDownCommand = "ac_temp_down";
-    constexpr const char *kIrModeCommand = "ac_mode";
 } // namespace client_config
 
 #endif

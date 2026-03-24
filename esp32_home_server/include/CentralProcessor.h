@@ -34,7 +34,6 @@ private:
     RelayFanController fan_;
     DualCurtainController curtain_;
     BuzzerController buzzer_;
-    IRController ir_;
     ConnectivityManager net_;
 
     // 流程层模块实例。
@@ -42,7 +41,6 @@ private:
     ControllerCommandProcessor commandProcessor_;
     AutomationEngine automationEngine_;
     LocalProcessingProgram localProgram_;
-    unsigned long lastIrPollMs_ = 0;
 };
 
 #endif

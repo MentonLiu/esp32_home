@@ -40,8 +40,6 @@ private:
     void handleSmokeAutomation(const StandardSensorData &sensorData);
     // 光照联动窗帘规则。
     void handleLightAutomation(const StandardSensorData &sensorData, const DateTime &now);
-    // 气候联动红外规则（高温/夜间高湿）。
-    void handleClimateIrAutomation(const StandardSensorData &sensorData, const DateTime &now);
     // 火焰告警联动规则。
     void handleFlameAutomation(const StandardSensorData &sensorData);
     // 统一状态/告警消息上报入口。
@@ -83,11 +81,6 @@ private:
     };
     LightCurtainMode lightCurtainMode_ = LightCurtainMode::Neutral;
     unsigned long lastLightCurtainActionMs_ = 0;
-
-    bool irCoolingActive_ = false;
-    unsigned long lastIrActionMs_ = 0;
-    unsigned long highTempSinceMs_ = 0;
-    unsigned long highHumiditySinceMs_ = 0;
 };
 
 #endif

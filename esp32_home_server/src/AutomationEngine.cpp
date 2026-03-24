@@ -24,14 +24,6 @@ namespace
     constexpr unsigned long kLightCurtainCooldownMs = 10UL * 60UL * 1000UL;
     constexpr unsigned long kCurtainManualOverrideMs = 30UL * 60UL * 1000UL;
 
-    constexpr uint8_t kIrTempTriggerC = 30;
-    constexpr uint8_t kIrTempRecoverC = 27;
-    constexpr uint8_t kIrHumidityTriggerPercent = 80;
-    constexpr uint8_t kIrHumidityRecoverPercent = 70;
-    constexpr unsigned long kIrTempHoldMs = 5UL * 60UL * 1000UL;
-    constexpr unsigned long kIrHumidityHoldMs = 10UL * 60UL * 1000UL;
-    constexpr unsigned long kIrActionCooldownMs = 15UL * 60UL * 1000UL;
-
     // 将日期压缩为“天序号”，用于每日只触发一次的去重逻辑。
     uint32_t dayStampFromDateTime(const DateTime &timePoint)
     {
@@ -42,12 +34,6 @@ namespace
     {
         const uint8_t hour = timePoint.hour();
         return hour >= 8 && hour < 18;
-    }
-
-    bool isNightWindow(const DateTime &timePoint)
-    {
-        const uint8_t hour = timePoint.hour();
-        return hour >= 22 || hour < 6;
     }
 } // namespace
 
@@ -85,7 +71,6 @@ void AutomationEngine::loop(const StandardSensorData &sensorData)
         const DateTime now = currentTime();
         handleCurtainSchedule(now);
         handleLightAutomation(sensorData, now);
-        handleClimateIrAutomation(sensorData, now);
     }
 
     // 传感联动可高频检查。
@@ -275,63 +260,6 @@ void AutomationEngine::handleLightAutomation(const StandardSensorData &sensorDat
     if (lightCurtainMode_ == LightCurtainMode::DaylightBoost && sensorData.lightPercent >= kLowLightOffThresholdPercent)
     {
         lightCurtainMode_ = LightCurtainMode::Neutral;
-    }
-}
-
-void AutomationEngine::handleClimateIrAutomation(const StandardSensorData &sensorData, const DateTime &now)
-{
-    const unsigned long nowMs = millis();
-
-    const bool highTemp = sensorData.temperatureC >= static_cast<float>(kIrTempTriggerC);
-    if (highTemp)
-    {
-        if (highTempSinceMs_ == 0)
-        {
-            highTempSinceMs_ = nowMs;
-        }
-    }
-    else
-    {
-        highTempSinceMs_ = 0;
-    }
-
-    const bool highHumidityAtNight = isNightWindow(now) && sensorData.humidityPercent >= static_cast<float>(kIrHumidityTriggerPercent);
-    if (highHumidityAtNight)
-    {
-        if (highHumiditySinceMs_ == 0)
-        {
-            highHumiditySinceMs_ = nowMs;
-        }
-    }
-    else
-    {
-        highHumiditySinceMs_ = 0;
-    }
-
-    const bool tempConditionReady = highTempSinceMs_ > 0 && (nowMs - highTempSinceMs_ >= kIrTempHoldMs);
-    const bool humidityConditionReady = highHumiditySinceMs_ > 0 && (nowMs - highHumiditySinceMs_ >= kIrHumidityHoldMs);
-
-    if (!irCoolingActive_ && (tempConditionReady || humidityConditionReady) && (nowMs - lastIrActionMs_ >= kIrActionCooldownMs))
-    {
-        const bool modeOk = commandProcessor_.sendIrCommand("ac_mode");
-        const bool tempDownOk = commandProcessor_.sendIrCommand("ac_temp_down");
-
-        if (modeOk || tempDownOk)
-        {
-            irCoolingActive_ = true;
-            lastIrActionMs_ = nowMs;
-            publishStatus(mqtt_upstream::statusTopic(),
-                          "automation",
-                          tempConditionReady ? "ir_cooling_by_high_temperature" : "ir_cooling_by_night_humidity");
-        }
-    }
-
-    if (irCoolingActive_ &&
-        sensorData.temperatureC <= static_cast<float>(kIrTempRecoverC) &&
-        sensorData.humidityPercent <= static_cast<float>(kIrHumidityRecoverPercent))
-    {
-        irCoolingActive_ = false;
-        publishStatus(mqtt_upstream::statusTopic(), "automation", "ir_cooling_condition_recovered");
     }
 }
 

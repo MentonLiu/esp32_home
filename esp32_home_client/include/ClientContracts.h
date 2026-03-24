@@ -15,10 +15,6 @@ enum class ClientControlMode : uint8_t
 enum class InputEventType : uint8_t
 {
     None = 0,
-    Key1,
-    Key2,
-    Key3,
-    Key4,
     FanPowerButton,
     EncoderAdjust,
     EncoderButton

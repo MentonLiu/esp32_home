@@ -367,24 +367,6 @@
                             <div class="range-label"><span>百分比调速</span><strong id="fanRangeValue">0%</strong></div>
                             <input id="fanRange" type="range" min="0" max="100" value="0" />
                         </div>
-                    </div>
-                </section>
-
-
-
-                <!-- 右列：红外桥接控制 -->
-                <section class="panel">
-                    <div class="title-row">
-                        <h2>红外桥接</h2>
-                        <span class="tiny">向 ESP8266 发送字符串命令</span>
-                    </div>
-                    <div class="controls">
-                        <div class="button-row">
-                            <button data-ir-command="ac_power">空调开关</button>
-                            <button data-ir-command="ac_temp_up">温度升高</button>
-                            <button data-ir-command="ac_temp_down">温度降低</button>
-                            <button data-ir-command="ac_mode" class="secondary">模式切换</button>
-                        </div>
                         <div class="log" id="actionLog">最近动作会显示在这里。</div>
                     </div>
                 </section>
@@ -573,13 +555,6 @@
                     return;
                 }
                 sendCommand({ device: 'fan', mode }, '风扇模式控制');
-            });
-        });
-
-        // 红外桥接命令按钮。
-        document.querySelectorAll('[data-ir-command]').forEach((button) => {
-            button.addEventListener('click', () => {
-                sendCommand({ device: 'ir', command: button.dataset.irCommand }, `红外命令 ${button.dataset.irCommand}`);
             });
         });
 

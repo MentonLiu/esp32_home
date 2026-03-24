@@ -213,14 +213,14 @@
     <div class="wrap">
         <section class="hero">
             <h1>ESP32 Home 仓库结构说明</h1>
-            <p class="sub">当前仓库围绕“服务端主控 + 局域网客户端面板 + 文档中心”来组织。真正已经跑起来的主链路是服务端网页与 HTTP 控制；客户端是第二入口；ESP8266 红外桥工程目录已建立，但当前仍处于占位阶段。</p>
+            <p class="sub">当前仓库围绕“服务端主控 + 局域网客户端面板 + 文档中心”来组织。真正已经跑起来的主链路是服务端网页与 HTTP 控制；客户端是第二入口。</p>
         </section>
 
         <section class="section">
             <h2>子项目分工</h2>
             <div class="grid">
                 <article class="card"><span class="tag server">服务端</span>
-                    <p><code>esp32_home_server/</code> 负责传感器采样、自动化、网页 API、风扇/窗帘执行和串口红外桥接。</p>
+                    <p><code>esp32_home_server/</code> 负责传感器采样、自动化、网页 API，以及风扇/窗帘/蜂鸣器执行控制。</p>
                 </article>
                 <article class="card"><span class="tag client">客户端</span>
                     <p><code>esp32_home_client/</code> 负责按键、旋钮、RGB、LCD1602，以及通过 HTTP 控制服务端。它是控制入口，不是主控中心。</p>
@@ -229,7 +229,7 @@
                     <p><code>doc/</code> 是统一文档中心。协议、需求和结构图都优先写在这里，不再在子项目里散落副本。</p>
                 </article>
                 <article class="card"><span class="tag hold">暂缓项</span>
-                    <p>LVGL 8pin 显示界面尚未定稿；MQTT 仅保留预留接口；ESP8266 红外桥项目目录已创建，但代码仍未进入正式实现阶段。</p>
+                    <p>LVGL 8pin 显示界面尚未定稿；MQTT 仅保留预留接口。</p>
                 </article>
             </div>
         </section>
@@ -239,10 +239,10 @@
             <p class="sub">下图按“仓库根目录 -> 核心子项目 -> 运行关系”展示当前工程结构，便于新成员快速定位开发入口与联调链路。</p>
             <div class="relation">
                 <div class="flow">
-                    <div class="node root"><strong>esp32_home/（仓库根）</strong><br />统一管理服务端固件、客户端固件、红外实验工程与文档。</div>
+                    <div class="node root"><strong>esp32_home/（仓库根）</strong><br />统一管理服务端固件、客户端固件与文档。</div>
                     <div class="conn">▼ 子项目拆分</div>
                     <div class="cols">
-                        <div class="node"><strong>esp32_home_server/</strong><br />主控服务端：传感器采样、自动化引擎、本地 Web API、串口红外桥接。
+                        <div class="node"><strong>esp32_home_server/</strong><br />主控服务端：传感器采样、自动化引擎、本地 Web API、执行器控制。
                         </div>
                         <div class="node"><strong>esp32_home_client/</strong><br />控制面板端：按键/旋钮输入、RGB/LCD 输出、通过 HTTP
                             调服务端控制接口。</div>
@@ -252,8 +252,8 @@
                     <div class="cols">
                         <div class="node">客户端 → 服务端：HTTP <code>/api/status</code> 拉取状态，<code>/api/control</code> 下发控制。
                         </div>
-                        <div class="node">服务端 → ESP8266 红外板：串口发送文本命令，ESP8266 负责协议解释与红外发射。</div>
                         <div class="node">服务端 ↔ 浏览器：通过 <code>web/index.html</code> 提供本地可视化与调试入口。</div>
+                        <div class="node">服务端自动化引擎：基于传感器数据驱动风扇、窗帘、蜂鸣器联动策略。</div>
                     </div>
                 </div>
             </div>
@@ -266,7 +266,7 @@
                     <code>esp32-server</code> / <code>lbl450981</code>。
                 </div>
                 <div class="step">客户端主链路只走 HTTP，不依赖 MQTT。MQTT 当前只保留占位代码与说明，后续单独设计再恢复。</div>
-                <div class="step">红外控制简化为字符串命令。服务端只负责向 ESP8266 发字符串；但当前 <code>esp8266_ir_control/</code> 仍是占位工程，红外执行端还需要后续实现。</div>
+                <div class="step">红外控制功能已从当前仓库下线，后续若恢复将以独立需求重新设计实现。</div>
                 <div class="step">8pin TFT 以后会改成 LVGL 界面，但目前界面尚未设计，因此显示逻辑先屏蔽，不让未定 UI 反向污染协议和固件结构。</div>
                 <div class="step">最近服务端重点在“可用性”而不是“加新功能”，已经处理网页控制延迟、蜂鸣器阻塞、舵机联动和主循环卡顿等问题。</div>
             </div>

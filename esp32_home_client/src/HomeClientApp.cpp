@@ -71,18 +71,6 @@ void HomeClientApp::handleEvent(const InputEvent &event)
 {
     switch (event.type)
     {
-    case InputEventType::Key1:
-        sendIrShortcut(client_config::kIrPowerCommand, "ir_power");
-        break;
-    case InputEventType::Key2:
-        sendIrShortcut(client_config::kIrTempUpCommand, "ir_temp_up");
-        break;
-    case InputEventType::Key3:
-        sendIrShortcut(client_config::kIrTempDownCommand, "ir_temp_down");
-        break;
-    case InputEventType::Key4:
-        sendIrShortcut(client_config::kIrModeCommand, "ir_mode");
-        break;
     case InputEventType::FanPowerButton:
         toggleFanPower();
         break;
@@ -145,13 +133,6 @@ ControlResponse HomeClientApp::sendControlPayload(const String &payload)
 {
     lastControlSendMs_ = millis();
     return apiClient_.sendCommand(payload);
-}
-
-void HomeClientApp::sendIrShortcut(const char *commandText, const char *label)
-{
-    const String payload = String("{\"device\":\"ir\",\"command\":\"") + commandText + "\"}";
-    const ControlResponse response = sendControlPayload(payload);
-    lastMessage_ = response.ok ? String(label) + "_ok" : String(label) + "_fail";
 }
 
 void HomeClientApp::toggleFanPower()

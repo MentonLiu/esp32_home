@@ -13,9 +13,6 @@ namespace
     constexpr const char *kStationPassword = "20220715";
     constexpr const char *kApSsid = "esp32-server";
     constexpr const char *kApPassword = "lbl450981";
-
-    // 使用 UART2 与 ESP8266 红外桥接板通信。
-    HardwareSerial gIrBridgeSerial(2);
 } // namespace
 
 CentralProcessor::CentralProcessor()
@@ -23,10 +20,9 @@ CentralProcessor::CentralProcessor()
       fan_(pins::FAN_PWM, 5),
       curtain_(pins::CURTAIN_SERVO_A, pins::CURTAIN_SERVO_B),
       buzzer_(pins::BUZZER),
-      ir_(pins::IR_BRIDGE_UART_RX, pins::IR_BRIDGE_UART_TX, pins::IR_BRIDGE_UART_BAUD),
       net_(kStationSsid, kStationPassword, kApSsid, kApPassword),
       sensorDataProcessor_(sensorHub_),
-      commandProcessor_(fan_, curtain_, buzzer_, ir_),
+      commandProcessor_(fan_, curtain_, buzzer_),
       automationEngine_(net_,
                         commandProcessor_,
                         [this](const char *topic, const String &type, const String &message)
@@ -53,11 +49,9 @@ void CentralProcessor::begin()
     sensorDataProcessor_.begin();
     LOG_INFO("INIT", "传感器初始化完成");
 
-    // 2) 初始化红外桥接串口与所有执行器。
+    // 2) 初始化执行器。
     LOG_INFO("INIT", "初始化执行器...");
-    gIrBridgeSerial.begin(ir_.baudRate(), SERIAL_8N1, pins::IR_BRIDGE_UART_RX, pins::IR_BRIDGE_UART_TX);
-    LOG_INFO("INIT", "红外桥接 UART 启动 (RX=%d, TX=%d, Baud=%ld)", pins::IR_BRIDGE_UART_RX, pins::IR_BRIDGE_UART_TX, ir_.baudRate());
-    commandProcessor_.begin(gIrBridgeSerial);
+    commandProcessor_.begin();
     LOG_INFO("INIT", "执行器初始化完成");
     LOG_INFO("INIT", "电机 LEDC 通道: 5, 舵机: auto, 蜂鸣器 LEDC 通道: 6");
 
@@ -91,17 +85,6 @@ void CentralProcessor::loop()
 
     // 自动化联动依赖最新传感器数据。
     automationEngine_.loop(sensorDataProcessor_.latest());
-
-    // 轮询红外桥接上行消息。
-    if (millis() - lastIrPollMs_ >= 20)
-    {
-        lastIrPollMs_ = millis();
-        String irPayload;
-        if (commandProcessor_.pollIrBridgeMessage(irPayload))
-        {
-            publishStatus(nullptr, "ir_bridge_rx", irPayload);
-        }
-    }
 }
 
 void CentralProcessor::publishStatus(const char *topic, const String &type, const String &message)

@@ -71,8 +71,6 @@ struct ControllerState
     uint8_t lastCurtainPreset = 0;
     // 是否存在有效预设（false 表示可能为手动角度）。
     bool hasCurtainPreset = false;
-    // 最近一次红外桥接命令文本。
-    String lastIrCommand;
 };
 
 // 指令处理统一返回结果。

@@ -29,14 +29,6 @@ namespace pins
     // 蜂鸣器输出脚。
     static constexpr uint8_t BUZZER = 12;
 
-    // 连接红外桥接控制器的串口引脚。
-    // ESP32 接收脚（连接桥接模块 TX）。
-    static constexpr uint8_t IR_BRIDGE_UART_RX = 15;
-    // ESP32 发送脚（连接桥接模块 RX）。
-    static constexpr uint8_t IR_BRIDGE_UART_TX = 14;
-    // 串口波特率。
-    static constexpr uint32_t IR_BRIDGE_UART_BAUD = 115200;
-
     // 外部实时时钟总线引脚。
     // I2C SDA。
     static constexpr uint8_t RTC_I2C_SDA = 8;

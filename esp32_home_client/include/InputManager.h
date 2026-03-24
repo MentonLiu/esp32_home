@@ -18,24 +18,12 @@ private:
     bool readButtonPressed(uint8_t pin, bool &stablePressed, bool &lastRawState, unsigned long &lastChangeMs);
     void updateEncoder();
 
-    bool key1Pressed_ = false;
-    bool key2Pressed_ = false;
-    bool key3Pressed_ = false;
-    bool key4Pressed_ = false;
     bool fanPowerButtonPressed_ = false;
     bool encoderButtonPressed_ = false;
 
-    bool key1RawState_ = false;
-    bool key2RawState_ = false;
-    bool key3RawState_ = false;
-    bool key4RawState_ = false;
     bool fanPowerButtonRawState_ = false;
     bool encoderButtonRawState_ = false;
 
-    unsigned long key1ChangeMs_ = 0;
-    unsigned long key2ChangeMs_ = 0;
-    unsigned long key3ChangeMs_ = 0;
-    unsigned long key4ChangeMs_ = 0;
     unsigned long fanPowerButtonChangeMs_ = 0;
     unsigned long encoderButtonChangeMs_ = 0;
 

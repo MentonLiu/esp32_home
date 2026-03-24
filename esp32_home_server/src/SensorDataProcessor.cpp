@@ -112,7 +112,6 @@ String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip
     {
         controller["curtainPreset"] = controllerState.lastCurtainPreset;
     }
-    controller["lastIrCommand"] = controllerState.lastIrCommand;
 
     String payload;
     serializeJson(doc, payload);

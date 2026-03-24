@@ -180,61 +180,6 @@ void BuzzerController::patternShortShortLong()
     enqueueSegment(1700, 700);
 }
 
-IRController::IRController(uint8_t rxPin, uint8_t txPin, uint32_t baudRate)
-    : rxPin_(rxPin), txPin_(txPin), baudRate_(baudRate)
-{
-}
-
-void IRController::begin(Stream &serial)
-{
-    // 仅持有 Stream 引用，不接管其生命周期。
-    serial_ = &serial;
-}
-
-bool IRController::sendTextCommand(const String &commandText)
-{
-    // 统一走按行协议，便于 ESP8266 端解析。
-    return sendLine(commandText);
-}
-
-IRDecodedSignal IRController::receive()
-{
-    IRDecodedSignal result;
-    if (serial_ == nullptr || !serial_->available())
-    {
-        return result;
-    }
-
-    result.payload = serial_->readStringUntil('\n');
-    // 去掉 CR/LF 和两端空白。
-    result.payload.trim();
-    result.available = result.payload.length() > 0;
-    return result;
-}
-
-uint32_t IRController::baudRate() const
-{
-    return baudRate_;
-}
-
-String IRController::lastCommand() const
-{
-    return lastCommand_;
-}
-
-bool IRController::sendLine(const String &line)
-{
-    if (serial_ == nullptr)
-    {
-        return false;
-    }
-
-    // 文本协议一行一条命令。
-    serial_->println(line);
-    lastCommand_ = line;
-    return true;
-}
-
 void BuzzerController::startSegment(const Segment &segment)
 {
     activeSegment_ = segment;

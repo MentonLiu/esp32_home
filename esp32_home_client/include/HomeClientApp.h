@@ -24,7 +24,6 @@ private:
     void handleEvent(const InputEvent &event);
     void flushPendingControl();
     ControlResponse sendControlPayload(const String &payload);
-    void sendIrShortcut(const char *commandText, const char *label);
     void toggleFanPower();
     void syncDesiredStateFromServer();
 
