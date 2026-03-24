@@ -3,9 +3,11 @@
 
 #include "AutomationEngine.h"
 
+#include <Wire.h>
 #include <time.h>
 
 #include "MqttUpstream.h"
+#include "pins.h"
 
 namespace
 {
@@ -22,57 +24,15 @@ namespace
     constexpr unsigned long kLightCurtainCooldownMs = 10UL * 60UL * 1000UL;
     constexpr unsigned long kCurtainManualOverrideMs = 30UL * 60UL * 1000UL;
 
-    int monthFromAbbrev(const char *month)
-    {
-        static constexpr char kMonths[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
-        const char *pos = strstr(kMonths, month);
-        if (pos == nullptr)
-        {
-            return 0;
-        }
-        return static_cast<int>((pos - kMonths) / 3);
-    }
-
-    time_t buildTimeToEpoch()
-    {
-        // __DATE__ 形如 "Mmm dd yyyy"，__TIME__ 形如 "hh:mm:ss"。
-        struct tm buildTm = {};
-        char mon[4] = {0};
-        int day = 1;
-        int year = 1970;
-        int hour = 0;
-        int minute = 0;
-        int second = 0;
-
-        if (sscanf(__DATE__ " " __TIME__, "%3s %d %d %d:%d:%d", mon, &day, &year, &hour, &minute, &second) != 6)
-        {
-            return 0;
-        }
-
-        buildTm.tm_mon = monthFromAbbrev(mon);
-        buildTm.tm_mday = day;
-        buildTm.tm_year = year - 1900;
-        buildTm.tm_hour = hour;
-        buildTm.tm_min = minute;
-        buildTm.tm_sec = second;
-        buildTm.tm_isdst = -1;
-        return mktime(&buildTm);
-    }
-
-    bool toLocalTime(time_t epoch, struct tm &localTime)
-    {
-        return localtime_r(&epoch, &localTime) != nullptr;
-    }
-
     // 将日期压缩为“天序号”，用于每日只触发一次的去重逻辑。
-    uint32_t dayStampFromEpoch(time_t epoch)
+    uint32_t dayStampFromDateTime(const DateTime &timePoint)
     {
-        return static_cast<uint32_t>(epoch / 86400UL);
+        return static_cast<uint32_t>(timePoint.unixtime() / 86400UL);
     }
 
-    bool isDaytimeWindow(const struct tm &localTime)
+    bool isDaytimeWindow(const DateTime &timePoint)
     {
-        const int hour = localTime.tm_hour;
+        const uint8_t hour = timePoint.hour();
         return hour >= 8 && hour < 18;
     }
 } // namespace
@@ -83,29 +43,34 @@ AutomationEngine::AutomationEngine(ConnectivityManager &net,
     : net_(net),
       commandProcessor_(commandProcessor),
       statusReporter_(statusReporter),
-      fallbackBaseEpoch_(buildTimeToEpoch())
+            fallbackBaseTime_(DateTime(F(__DATE__), F(__TIME__)))
 {
 }
 
 void AutomationEngine::begin()
 {
+        // 初始化 RTC 所在 I2C 总线。
+        Wire.begin(pins::RTC_I2C_SDA, pins::RTC_I2C_SCL);
+        rtcAvailable_ = rtc_.begin();
     // 记录回退时钟基准点。
     fallbackBaseMillis_ = millis();
     ensureTimeSource();
+        syncRtcFromNtp();
 }
 
 void AutomationEngine::loop(const StandardSensorData &sensorData)
 {
     // 每轮循环都尝试维护时间源状态。
     ensureTimeSource();
+    syncRtcFromNtp();
 
     // 定时任务按 1Hz 执行即可，避免无意义高频计算。
     if (millis() - lastScheduleCheckMs_ >= 1000)
     {
         lastScheduleCheckMs_ = millis();
-        const time_t nowEpoch = currentTime();
-        handleCurtainSchedule(nowEpoch);
-        handleLightAutomation(sensorData, nowEpoch);
+        const DateTime now = currentTime();
+        handleCurtainSchedule(now);
+        handleLightAutomation(sensorData, now);
     }
 
     // 传感联动可高频检查。
@@ -123,33 +88,73 @@ void AutomationEngine::ensureTimeSource()
     }
 }
 
-time_t AutomationEngine::currentTime()
+void AutomationEngine::syncRtcFromNtp()
 {
-    // 优先使用 NTP（在线最准确，time 值有效）。
+    // 只在“RTC 可用 + NTP 已配置 + 尚未同步”时执行一次。
+    if (!rtcAvailable_ || rtcSyncedFromNtp_ || !ntpConfigured_)
+    {
+        return;
+    }
+
+    const time_t now = time(nullptr);
+    // NTP 尚未获取到有效时间时，time 可能过小。
+    if (now <= 100000)
+    {
+        return;
+    }
+
+    struct tm localTime;
+    localtime_r(&now, &localTime);
+    rtc_.adjust(DateTime(localTime.tm_year + 1900,
+                         localTime.tm_mon + 1,
+                         localTime.tm_mday,
+                         localTime.tm_hour,
+                         localTime.tm_min,
+                         localTime.tm_sec));
+    rtcSyncedFromNtp_ = true;
+    // 记录同步事件，便于排查离线时间异常。
+    publishStatus(mqtt_upstream::statusTopic(), "rtc", "rtc_synced_from_ntp");
+}
+
+DateTime AutomationEngine::currentTime()
+{
+    // 优先使用 NTP（在线最准确）。
     if (ntpConfigured_)
     {
         const time_t now = time(nullptr);
         if (now > 100000)
         {
-            return now;
+            struct tm localTime;
+            localtime_r(&now, &localTime);
+            return DateTime(localTime.tm_year + 1900,
+                            localTime.tm_mon + 1,
+                            localTime.tm_mday,
+                            localTime.tm_hour,
+                            localTime.tm_min,
+                            localTime.tm_sec);
+        }
+    }
+
+    if (rtcAvailable_)
+    {
+        const DateTime rtcNow = rtc_.now();
+        // 对 RTC 年份做最小有效值保护，避免未校时数据污染自动化。
+        if (rtcNow.year() >= 2024)
+        {
+            return rtcNow;
         }
     }
 
     // 最后回退到“编译时刻 + 开机已运行时长”。
-    return fallbackBaseEpoch_ + static_cast<time_t>((millis() - fallbackBaseMillis_) / 1000UL);
+    return fallbackBaseTime_ + TimeSpan((millis() - fallbackBaseMillis_) / 1000UL);
 }
 
-void AutomationEngine::handleCurtainSchedule(time_t nowEpoch)
+void AutomationEngine::handleCurtainSchedule(const DateTime &now)
 {
-    struct tm localTime;
-    if (!toLocalTime(nowEpoch, localTime))
-    {
-        return;
-    }
-    const uint32_t dayStamp = dayStampFromEpoch(nowEpoch);
+    const uint32_t dayStamp = dayStampFromDateTime(now);
 
     // 每日 07:00 自动开窗帘，且同一天只触发一次。
-    if (localTime.tm_hour == 7 && localTime.tm_min == 0 && lastOpenDayStamp_ != dayStamp)
+    if (now.hour() == 7 && now.minute() == 0 && lastOpenDayStamp_ != dayStamp)
     {
         commandProcessor_.setCurtainPreset(4);
         lastOpenDayStamp_ = dayStamp;
@@ -157,7 +162,7 @@ void AutomationEngine::handleCurtainSchedule(time_t nowEpoch)
     }
 
     // 每日 22:00 自动关窗帘，且同一天只触发一次。
-    if (localTime.tm_hour == 22 && localTime.tm_min == 0 && lastCloseDayStamp_ != dayStamp)
+    if (now.hour() == 22 && now.minute() == 0 && lastCloseDayStamp_ != dayStamp)
     {
         commandProcessor_.setCurtainPreset(0);
         lastCloseDayStamp_ = dayStamp;
@@ -203,16 +208,10 @@ void AutomationEngine::handleSmokeAutomation(const StandardSensorData &sensorDat
     }
 }
 
-void AutomationEngine::handleLightAutomation(const StandardSensorData &sensorData, time_t nowEpoch)
+void AutomationEngine::handleLightAutomation(const StandardSensorData &sensorData, const DateTime &now)
 {
-    struct tm localTime;
-    if (!toLocalTime(nowEpoch, localTime))
-    {
-        return;
-    }
-
     // 仅白天启用光照联动，避免夜间误动作。
-    if (!isDaytimeWindow(localTime))
+    if (!isDaytimeWindow(now))
     {
         return;
     }
