@@ -5,6 +5,8 @@
 
 #include <ESPmDNS.h>
 
+#include "Logger.h"
+
 ConnectivityManager *ConnectivityManager::instance_ = nullptr;
 
 ConnectivityManager::ConnectivityManager(const char *stationSsid,
@@ -37,6 +39,7 @@ void ConnectivityManager::begin()
     connectStation(false);
     // 根据当前连接结果决定是否切到 cloud/local_ap。
     evaluateMode();
+    announceAccessUrl();
 }
 
 void ConnectivityManager::loop()
@@ -189,6 +192,7 @@ void ConnectivityManager::evaluateMode()
         stopLocalAp();
         mode_ = OperatingMode::Cloud;
         ensureMdnsState();
+        announceAccessUrl();
         return;
     }
 
@@ -196,6 +200,7 @@ void ConnectivityManager::evaluateMode()
     startLocalAp();
     mode_ = OperatingMode::LocalAP;
     ensureMdnsState();
+    announceAccessUrl();
 }
 
 void ConnectivityManager::startLocalAp()
@@ -240,6 +245,29 @@ void ConnectivityManager::ensureMdnsState()
     {
         MDNS.end();
         mdnsStarted_ = false;
+    }
+}
+
+void ConnectivityManager::announceAccessUrl()
+{
+    const String ip = ipString();
+    if (hasAnnouncedAccessUrl_ && mode_ == lastAnnouncedMode_ && ip == lastAnnouncedIp_)
+    {
+        return;
+    }
+
+    hasAnnouncedAccessUrl_ = true;
+    lastAnnouncedMode_ = mode_;
+    lastAnnouncedIp_ = ip;
+
+    LOG_INFO("NET", "页面访问地址: http://%s/", ip.c_str());
+    if (mode_ == OperatingMode::Cloud)
+    {
+        LOG_INFO("NET", "已联网，可尝试 mDNS 地址: http://%s/", hostName().c_str());
+    }
+    else if (mode_ == OperatingMode::LocalAP)
+    {
+        LOG_INFO("NET", "本地 AP 模式已开启，请连接热点后访问上述地址");
     }
 }
 

@@ -9,8 +9,8 @@
 namespace
 {
     // 当前项目固定的联网配置。
-    constexpr const char *kStationSsid = "iPadmini";
-    constexpr const char *kStationPassword = "lbl450981";
+    constexpr const char *kStationSsid = "HW-2103";
+    constexpr const char *kStationPassword = "20220715";
     constexpr const char *kApSsid = "esp32-server";
     constexpr const char *kApPassword = "lbl450981";
 

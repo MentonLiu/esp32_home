@@ -70,6 +70,8 @@ private:
     void stopLocalAp();
     // 根据模式启停 mDNS。
     void ensureMdnsState();
+    // 串口提示当前可访问页面地址。
+    void announceAccessUrl();
     // 保证 MQTT 已连接（含节流重试）。
     bool ensureMqttConnected();
     // MQTT 参数是否配置完整。
@@ -96,6 +98,9 @@ private:
     bool apStarted_ = false;
     bool mdnsStarted_ = false;
     bool stationConnectInProgress_ = false;
+    bool hasAnnouncedAccessUrl_ = false;
+    OperatingMode lastAnnouncedMode_ = OperatingMode::LocalAP;
+    String lastAnnouncedIp_;
     unsigned long lastModeCheckMs_ = 0;
     unsigned long lastMqttRetryMs_ = 0;
     unsigned long lastStationConnectAttemptMs_ = 0;
