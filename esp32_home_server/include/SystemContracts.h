@@ -47,8 +47,6 @@ struct StandardSensorData
     uint8_t mq2Percent = 0;
     // 烟雾等级标签（green/blue/yellow/red）。
     String smokeLevel = "green";
-    // 火焰二值状态。
-    bool flameDetected = false;
     // 采样链路是否有错误。
     bool hasError = false;
     // 错误文字（如 dht_read_failed）。

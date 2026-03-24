@@ -15,8 +15,6 @@ namespace pins
     static constexpr uint8_t LIGHT_ANALOG = 4;
     // MQ2 烟雾传感器模拟输入。
     static constexpr uint8_t MQ2_ANALOG = 5;
-    // 火焰传感器模拟输入。
-    static constexpr uint8_t FLAME_ANALOG = 6;
 
     // 执行器输出引脚。
     // 风扇 PWM 输出（建议连接 ULN2003A 的 IN1）。

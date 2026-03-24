@@ -6,8 +6,7 @@
 // 2) 温度联动风扇：高温自动切高档，温度回落后退出高温增强状态。
 // 3) 烟雾联动：烟雾达到阈值自动开高档风扇，并在高危区间周期性蜂鸣提醒。
 // 4) 光照联动窗帘：白天按亮度自动防眩/补光，带手动优先与动作冷却机制。
-// 5) 火焰联动告警：持续检测到火焰后触发本地告警模式，并在云模式下上报远端告警。
-// 6) 时间源管理：优先使用 NTP，失败时回退到编译时刻+运行时长，保障离线定时可用。
+// 5) 时间源管理：优先使用 NTP，失败时回退到编译时刻+运行时长，保障离线定时可用。
 
 #ifndef AUTOMATION_ENGINE_H
 #define AUTOMATION_ENGINE_H
@@ -20,7 +19,7 @@
 #include "SystemContracts.h"
 
 // 自动化引擎：
-// 聚合时间调度、烟雾联动、火焰联动等规则，不直接关心 UI 或协议细节。
+// 聚合时间调度、烟雾联动等规则，不直接关心 UI 或协议细节。
 class AutomationEngine
 {
 public:
@@ -46,8 +45,6 @@ private:
     void handleSmokeAutomation(const StandardSensorData &sensorData);
     // 光照联动窗帘规则。
     void handleLightAutomation(const StandardSensorData &sensorData, time_t nowEpoch);
-    // 火焰告警联动规则。
-    void handleFlameAutomation(const StandardSensorData &sensorData);
     // 统一状态/告警消息上报入口。
     void publishStatus(const char *topic, const String &type, const String &message) const;
 
@@ -63,12 +60,9 @@ private:
 
     // 限流与去重状态。
     unsigned long lastScheduleCheckMs_ = 0;
-    unsigned long flameDetectedSinceMs_ = 0;
     unsigned long lastHighSmokeBeepMs_ = 0;
-    unsigned long lastFlamePatternMs_ = 0;
     uint32_t lastOpenDayStamp_ = UINT32_MAX;
     uint32_t lastCloseDayStamp_ = UINT32_MAX;
-    bool fireAlarmReported_ = false;
 
     bool tempFanBoostActive_ = false;
     unsigned long lastTempFanActionMs_ = 0;

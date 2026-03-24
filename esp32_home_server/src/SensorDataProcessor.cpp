@@ -63,7 +63,6 @@ String SensorDataProcessor::buildSensorJson() const
     doc["lightPercent"] = latest_.lightPercent;
     doc["mq2Percent"] = latest_.mq2Percent;
     doc["smokeLevel"] = latest_.smokeLevel;
-    doc["flameDetected"] = latest_.flameDetected;
     doc["error"] = latest_.hasError;
     doc["errorMessage"] = latest_.errorMessage;
 
@@ -84,7 +83,6 @@ String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip
     doc["lightPercent"] = latest_.lightPercent;
     doc["mq2Percent"] = latest_.mq2Percent;
     doc["smokeLevel"] = latest_.smokeLevel;
-    doc["flameDetected"] = latest_.flameDetected;
     doc["fanMode"] = fanModeToString(controllerState.fanMode);
     doc["fanSpeedPercent"] = controllerState.fanSpeedPercent;
     doc["curtainAngle"] = controllerState.curtainAngle;
@@ -98,7 +96,6 @@ String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip
     sensor["lightPercent"] = latest_.lightPercent;
     sensor["mq2Percent"] = latest_.mq2Percent;
     sensor["smokeLevel"] = latest_.smokeLevel;
-    sensor["flameDetected"] = latest_.flameDetected;
     sensor["timestamp"] = latest_.timestamp;
     sensor["error"] = latest_.hasError;
     sensor["errorMessage"] = latest_.errorMessage;
@@ -126,7 +123,6 @@ void SensorDataProcessor::normalize(const SensorSnapshot &snapshot)
     latest_.lightPercent = snapshot.lightPercent;
     latest_.mq2Percent = snapshot.mq2Percent;
     latest_.smokeLevel = snapshot.smokeLevel;
-    latest_.flameDetected = snapshot.flameDetected;
     latest_.hasError = snapshot.hasError;
     latest_.errorMessage = snapshot.errorMessage;
     latest_.timestamp = snapshot.timestamp;

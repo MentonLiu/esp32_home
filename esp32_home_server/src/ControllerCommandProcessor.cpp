@@ -184,11 +184,6 @@ void ControllerCommandProcessor::beep(uint16_t frequency, uint16_t durationMs)
     buzzer_.beep(frequency, durationMs);
 }
 
-void ControllerCommandProcessor::playFireAlarmPattern()
-{
-    buzzer_.patternShortShortLong();
-}
-
 const ControllerState &ControllerCommandProcessor::state() const
 {
     return state_;

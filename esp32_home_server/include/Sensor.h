@@ -15,7 +15,6 @@ struct SensorSnapshot
     uint8_t lightPercent = 0;
     uint8_t mq2Percent = 0;
     String smokeLevel = "green";
-    bool flameDetected = false;
     bool hasError = false;
     String errorMessage;
     unsigned long timestamp = 0;
@@ -62,7 +61,6 @@ public:
     SensorHub(uint8_t dhtPin,
               uint8_t lightPin,
               uint8_t mq2Pin,
-              uint8_t flamePin,
               uint8_t dhtType = DHT11);
 
     // 初始化全部传感器。
@@ -79,9 +77,6 @@ private:
     DhtSensor dht_;
     AnalogPercentSensor light_;
     AnalogPercentSensor mq2_;
-    AnalogPercentSensor flame_;
-    // 火焰状态缓存，配合滞回阈值防止边界抖动。
-    bool flameDetectedState_ = false;
     SensorSnapshot latest_;
     unsigned long lastSampleMs_ = 0;
 };

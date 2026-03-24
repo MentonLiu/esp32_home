@@ -16,7 +16,7 @@ namespace
 } // namespace
 
 CentralProcessor::CentralProcessor()
-    : sensorHub_(pins::DHT_DATA, pins::LIGHT_ANALOG, pins::MQ2_ANALOG, pins::FLAME_ANALOG),
+    : sensorHub_(pins::DHT_DATA, pins::LIGHT_ANALOG, pins::MQ2_ANALOG),
       fan_(pins::FAN_PWM, 5),
       curtain_(pins::CURTAIN_SERVO_A, pins::CURTAIN_SERVO_B),
       buzzer_(pins::BUZZER),

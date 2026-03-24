@@ -111,7 +111,6 @@ void AutomationEngine::loop(const StandardSensorData &sensorData)
     // 传感联动可高频检查。
     handleTemperatureAutomation(sensorData);
     handleSmokeAutomation(sensorData);
-    handleFlameAutomation(sensorData);
 }
 
 void AutomationEngine::ensureTimeSource()
@@ -261,37 +260,6 @@ void AutomationEngine::handleLightAutomation(const StandardSensorData &sensorDat
     if (lightCurtainMode_ == LightCurtainMode::DaylightBoost && sensorData.lightPercent >= kLowLightOffThresholdPercent)
     {
         lightCurtainMode_ = LightCurtainMode::Neutral;
-    }
-}
-
-void AutomationEngine::handleFlameAutomation(const StandardSensorData &sensorData)
-{
-    if (!sensorData.flameDetected)
-    {
-        // 火焰解除后重置状态，允许下一次完整告警流程。
-        flameDetectedSinceMs_ = 0;
-        fireAlarmReported_ = false;
-        return;
-    }
-
-    if (flameDetectedSinceMs_ == 0)
-    {
-        flameDetectedSinceMs_ = millis();
-    }
-
-    const unsigned long durationMs = millis() - flameDetectedSinceMs_;
-    // 持续 45 秒后每 3 秒播放一次火警蜂鸣模式。
-    if (durationMs >= 45000 && millis() - lastFlamePatternMs_ >= 3000)
-    {
-        lastFlamePatternMs_ = millis();
-        commandProcessor_.playFireAlarmPattern();
-    }
-
-    // 持续 5 分钟且云模式下，仅上报一次远端火警。
-    if (durationMs >= 300000 && !fireAlarmReported_ && net_.isCloudMode())
-    {
-        fireAlarmReported_ = true;
-        publishStatus(mqtt_upstream::alarmTopic(), "fire", "flame_over_5min_fire_service_alert");
     }
 }
 

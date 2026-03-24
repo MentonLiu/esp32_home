@@ -35,8 +35,6 @@ public:
     void setCurtainPreset(uint8_t preset);
     // 触发蜂鸣器单次鸣叫。
     void beep(uint16_t frequency, uint16_t durationMs);
-    // 触发火警蜂鸣模式。
-    void playFireAlarmPattern();
     // 获取当前控制器状态快照。
     const ControllerState &state() const;
     // 最近一次手动窗帘控制时间戳（毫秒）。

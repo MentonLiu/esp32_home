@@ -309,10 +309,6 @@
                             <div class="label">烟雾等级</div>
                             <div class="value" id="smokeLevelValue">--</div>
                         </article>
-                        <article class="sensor-card">
-                            <div class="label">火焰状态</div>
-                            <div class="value" id="flameValue">--</div>
-                        </article>
                     </div>
                 </section>
 
@@ -432,9 +428,6 @@
                 document.getElementById('lightValue').textContent = fmt(data.lightPercent, ' %');
                 document.getElementById('smokeValue').textContent = fmt(data.mq2Percent, ' %');
                 document.getElementById('smokeLevelValue').textContent = data.smokeLevel || '--';
-                // 兼容布尔/数字/字符串三种真值表达。
-                const flameDetected = data.flameDetected === true || data.flameDetected === 1 || data.flameDetected === 'true';
-                document.getElementById('flameValue').textContent = flameDetected ? '检测到火焰' : '未检测到';
 
                 // 执行器区域。
                 document.getElementById('curtainAngleText').textContent = `角度 ${data.curtainAngle}°`;
@@ -450,14 +443,12 @@
                     fanRange.value = data.fanSpeedPercent;
                 }
 
-                // 系统摘要优先级：火焰 > 高烟雾 > 网络模式。
-                const headline = flameDetected
-                    ? '火焰传感器已触发'
-                    : data.mq2Percent >= 75
-                        ? '烟雾浓度过高，已自动联动风扇'
-                        : data.mode === 'cloud'
-                            ? '系统运行在路由器联网模式'
-                            : '系统运行在本地热点模式';
+                // 系统摘要优先级：高烟雾 > 网络模式。
+                const headline = data.mq2Percent >= 75
+                    ? '烟雾浓度过高，已自动联动风扇'
+                    : data.mode === 'cloud'
+                        ? '系统运行在路由器联网模式'
+                        : '系统运行在本地热点模式';
                 const details = `风扇 ${data.fanSpeedPercent}% · 窗帘 ${data.curtainAngle}°`;
 
                 document.getElementById('systemHeadline').textContent = headline;

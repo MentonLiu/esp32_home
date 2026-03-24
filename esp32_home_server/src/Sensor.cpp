@@ -6,12 +6,6 @@
 #include <math.h>
 #include "Logger.h"
 
-namespace
-{
-    constexpr uint8_t kFlameOnThresholdPercent = 60;
-    constexpr uint8_t kFlameOffThresholdPercent = 45;
-} // namespace
-
 DhtSensor::DhtSensor(uint8_t pin, uint8_t sensorType) : dht_(pin, sensorType) {}
 
 void DhtSensor::begin()
@@ -69,12 +63,10 @@ uint8_t AnalogPercentSensor::readPercent() const
 SensorHub::SensorHub(uint8_t dhtPin,
                      uint8_t lightPin,
                      uint8_t mq2Pin,
-                     uint8_t flamePin,
                      uint8_t dhtType)
     : dht_(dhtPin, dhtType),
       light_(lightPin, true),
-      mq2_(mq2Pin, false),
-      flame_(flamePin, false)
+      mq2_(mq2Pin, false)
 {
     // 构造阶段仅绑定引脚与参数，不做硬件访问。
 }
@@ -89,8 +81,6 @@ void SensorHub::begin()
     LOG_DEBUG("SENSOR", "光照传感器初始化完成");
     mq2_.begin();
     LOG_DEBUG("SENSOR", "MQ2烟雾传感器初始化完成");
-    flame_.begin();
-    LOG_DEBUG("SENSOR", "火焰传感器初始化完成");
     LOG_INFO("SENSOR", "所有传感器已就绪");
 }
 
@@ -122,31 +112,15 @@ bool SensorHub::poll(unsigned long intervalMs)
     latest_.lightPercent = light_.readPercent();
     latest_.mq2Percent = mq2_.readPercent();
     latest_.smokeLevel = smokeLevelFromPercent(latest_.mq2Percent);
-    // 使用滞回阈值，避免模拟量在边界抖动导致状态卡住。
-    const uint8_t flamePercent = flame_.readPercent();
-    if (flameDetectedState_)
-    {
-        if (flamePercent <= kFlameOffThresholdPercent)
-        {
-            flameDetectedState_ = false;
-        }
-    }
-    else if (flamePercent >= kFlameOnThresholdPercent)
-    {
-        flameDetectedState_ = true;
-        LOG_WARN("SENSOR", "火焰传感器触发！ 浓度: %d%%", flamePercent);
-    }
-
-    latest_.flameDetected = flameDetectedState_;
 
     // 每30秒输出一次完整的传感器状态
     static unsigned long lastDebugLogMs = 0;
     if (now - lastDebugLogMs > 30000)
     {
-        LOG_DEBUG("SENSOR", "传感器状态: T=%.1f°C H=%.1f%% 光=%d%% MQ2=%d%% 烟=%s 火=%s",
+        LOG_DEBUG("SENSOR", "传感器状态: T=%.1f°C H=%.1f%% 光=%d%% MQ2=%d%% 烟=%s",
                   latest_.temperatureC, latest_.humidityPercent,
                   latest_.lightPercent, latest_.mq2Percent,
-                  latest_.smokeLevel.c_str(), flameDetectedState_ ? "YES" : "NO");
+                  latest_.smokeLevel.c_str());
         lastDebugLogMs = now;
     }
 
