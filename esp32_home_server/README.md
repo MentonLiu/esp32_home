@@ -1,70 +1,102 @@
 # ESP32 Home Server
 
-基于 ESP32-S3 + PlatformIO + Arduino 的智能家居服务端。当前实现按项目根目录文档重建，开发重点收敛到“服务端 HTTP + 客户端面板”。
+基于 ESP32-S3 + PlatformIO + Arduino 的智能家居服务端固件。
 
-本轮已经重点处理本地网页控制延迟、窗帘无极调节手感不明显、直流电机动作时舵机易受干扰，以及告警期间程序卡顿等问题。
+当前版本聚焦本地可控、自动化稳定和网页实时交互：
 
-## 当前重点
+- 本地 Web 控制面板（LittleFS）
+- 非阻塞网络切换（路由器 Wi-Fi 与本地热点自动切换）
+- 风扇 PWM 调速、双舵机窗帘、蜂鸣器告警
+- 传感器采样标准化与统一状态接口
+- 自动化规则（时间、温度、烟雾、光照）
 
-- 主家庭 Wi-Fi 已固定为 `iPadmini / lbl450981`
-- MQTT 目前不作为当前交付主功能
-- 红外功能已下线，不在当前交付范围
-- 服务端网页不再承担项目结构页展示
+## 1. 项目定位
 
-## 当前目录结构
+这是一个“服务端固件”，主要对外提供：
 
-- `include/`
-  头文件，包含引脚定义、数据契约、传感器/执行器接口、联网与自动化模块接口。
-- `src/`
-  固件实现，按“采集、控制、联网、页面、自动化、中央调度”拆分。
-- `web/`
-  LittleFS 页面资源，目前只保留主控制台。
-- `../doc/`
-  项目根目录统一文档中心。
-- `../project-map.html`
-  仓库级结构说明页。
-- `platformio.ini`
-  PlatformIO 构建配置。
-- `changes.md`
-  本子项目变更记录。
+- 页面入口：`/`
+- 状态接口：`/api/status`
+- 控制接口：`/api/control`
 
-## 主要模块
+前端页面由设备内置 WebServer 直接提供，不依赖外部云服务即可使用。
 
-- `CentralProcessor`
-  系统总控，负责统一初始化与主循环调度。
-- `Sensor` + `SensorDataProcessor`
-  负责 DHT11、光照、MQ2、火焰采样，并标准化为统一状态数据。
-- `Controllerr` + `ControllerCommandProcessor`
-  负责风扇、窗帘、蜂鸣器控制；当前窗帘和蜂鸣器都已改为非阻塞推进模型。
+## 2. 当前技术栈
+
+- 主控：ESP32-S3 DevKitC-1
+- 框架：Arduino（PlatformIO）
+- 文件系统：LittleFS（`web/` 作为数据目录）
+- 主要依赖：
+  - ArduinoJson
+  - PubSubClient（当前仅保留占位接入能力）
+  - DHT sensor library
+  - ESP32Servo
+  - RTClib
+
+## 3. 目录说明
+
+- `include/`：模块接口与数据契约
+- `src/`：固件实现
+- `web/`：LittleFS 页面资源（当前主页面为 `index.html`）
+- `platformio.ini`：编译、上传、依赖配置
+- `changes.md`：变更记录
+
+## 4. 模块架构
+
+系统由 `CentralProcessor` 统一编排，启动与循环流程如下：
+
+1. 传感器初始化
+2. 执行器初始化
+3. 网络与 WebServer 初始化
+4. 自动化引擎初始化
+5. 本地 HTTP 程序初始化
+6. 进入主循环（网络 -> 控制器 -> 传感器 -> 自动化）
+
+核心模块：
+
 - `ConnectivityManager`
-  负责家用 Wi-Fi、`esp32-server` 热点、WebServer 和占位 MQTT 连接管理。
+  - 管理 STA/AP 模式切换
+  - 提供 WebServer
+  - 预留 MQTT 生命周期管理
 - `LocalProcessingProgram`
-  暴露 `/`、`/api/status`、`/api/control`。
+  - 注册并处理 `/`、`/api/status`、`/api/control`
+- `SensorHub` + `SensorDataProcessor`
+  - 采样 DHT11、光照、MQ2
+  - 输出标准化状态结构与 JSON
+- `Controllerr` + `ControllerCommandProcessor`
+  - 控制风扇、窗帘、蜂鸣器
+  - 解析控制命令 JSON
 - `AutomationEngine`
-  负责定时窗帘、烟雾联动、火焰联动。
+  - 时间调度、温度联动、烟雾联动、光照联动
 
-## 网络与运行模式
+## 5. 网络模式
 
-系统有两种模式：
+系统支持两种运行模式：
 
 - `cloud`
-  连接 `iPadmini` 后进入该模式，本地网页继续可用；MQTT 代码可保留，但当前不作为主流程。
+  - 已连接家庭路由器（STA）
+  - 通过路由器 IP 访问，也可尝试 mDNS：`http://esp32-home-server.local/`
 - `local_ap`
-  无法联网时自动开启热点：
-  - SSID: `esp32-server`
-  - Password: `lbl450981`
+  - 未连上家庭路由器时自动开启 AP 热点
+  - 默认热点：
+    - SSID: `esp32-server`
+    - Password: `lbl450981`
 
-每 30 秒会重新检查联网状态，有网时回到 `cloud`，没网时保持 `local_ap`。
+模式评估每 30 秒执行一次；重连 STA 为非阻塞，不会明显阻塞本地控制。
 
-说明：
+## 6. Wi-Fi 与设备访问
 
-- 现在重连家庭 Wi-Fi 已改为非阻塞方式，不会再因为重连等待而把本地网页控制卡住几秒。
+当前固件中家庭 Wi-Fi 在代码内固定（`src/CentralProcessor.cpp`）：
 
-## HTTP 接口
+- SSID: `HW-2103`
+- Password: `20220715`
 
-### `GET /api/status`
+建议按现场环境修改后重新编译烧录。
 
-返回当前模式、IP、传感器状态、风扇档位、风扇速度、窗帘角度和错误信息。
+## 7. HTTP API
+
+### 7.1 GET /api/status
+
+返回系统完整状态，包含平铺字段和分组字段（`sensor`、`controller`）。
 
 示例：
 
@@ -72,23 +104,40 @@
 {
   "mode": "local_ap",
   "ip": "192.168.4.1",
+  "sensorTimestamp": 1234567,
   "temperatureC": 26.3,
   "humidityPercent": 58.0,
   "lightPercent": 72,
   "mq2Percent": 18,
   "smokeLevel": "green",
-  "flameDetected": false,
   "fanMode": "off",
   "fanSpeedPercent": 0,
   "curtainAngle": 90,
   "error": false,
-  "errorMessage": ""
+  "errorMessage": "",
+  "sensor": {
+    "temperatureC": 26.3,
+    "humidityPercent": 58.0,
+    "lightPercent": 72,
+    "mq2Percent": 18,
+    "smokeLevel": "green",
+    "timestamp": 1234567,
+    "error": false,
+    "errorMessage": ""
+  },
+  "controller": {
+    "fanMode": "off",
+    "fanSpeedPercent": 0,
+    "curtainAngle": 90
+  }
 }
 ```
 
-### `POST /api/control`
+### 7.2 POST /api/control
 
-用于发送风扇、窗帘控制命令，会返回真实执行结果：
+请求体为 JSON，支持 `fan` 与 `curtain` 两类设备控制。
+
+统一返回：
 
 ```json
 {
@@ -99,10 +148,18 @@
 }
 ```
 
-控制命令示例：
+控制示例：
 
 ```json
 {"device":"fan","mode":"off"}
+```
+
+```json
+{"device":"fan","mode":"low"}
+```
+
+```json
+{"device":"fan","mode":"medium"}
 ```
 
 ```json
@@ -117,55 +174,113 @@
 {"device":"curtain","angle":135}
 ```
 
-## 风扇 PWM 调速（ULN2003A）
+```json
+{"device":"curtain","preset":3}
+```
 
-当前风扇控制已按“直流电机 PWM 调速”实现，适配 ULN2003A 这类低边驱动方案。
+常见失败消息：
 
-### 推荐接线
+- `invalid_control_json:*`
+- `device_missing`
+- `unknown_device`
+- `fan_mode_invalid`
+- `fan_command_missing`
+- `curtain_command_missing`
 
-- ESP32 `GPIO18`（`pins::FAN_PWM`） -> ULN2003A `IN1`
-- ULN2003A `OUT1` -> 直流电机负极
-- 直流电机正极 -> `+5V`
-- ULN2003A `GND` -> 电源地
-- ESP32 `GND` 与电机电源地共地
-- ULN2003A `COM` -> `+5V`（使用芯片内部续流二极管）
+## 8. 自动化规则（当前实现）
 
-### 功能能力
+### 8.1 时间窗帘
 
-- 支持：模式控制、单方向 PWM 调速、自动化调速
-- 不支持：反转（需要 H 桥驱动）
+- 每日 07:00：窗帘打开到预设 4（全开）
+- 每日 22:00：窗帘关闭到预设 0（全关）
+- 同一天内去重触发
 
-### 重要说明
+### 8.2 温度联动风扇
 
-- 不要把电机直接接到 ESP32 GPIO。
-- 如果直流电机和舵机共用一组供电，仍可能出现舵机抖动、误动作或 ESP32 复位，推荐分开供电并共地。
-- 建议在电机驱动侧保留续流回路，并在电机/舵机电源附近增加足够的去耦和储能电容。
+- 温度 >= 32°C：触发风扇高档（带 10 分钟动作冷却）
+- 温度 <= 29°C：退出高温增强状态
 
-## 窗帘与舵机说明
+### 8.3 烟雾联动
 
-当前窗帘采用双舵机反向联动，软件侧已做两项稳定性处理：
+- MQ2 >= 75%：风扇自动高档
+- MQ2 >= 90%：蜂鸣器约每 1.2 秒短鸣一次
 
-- 舵机只有在收到新角度时才重新挂接 PWM。
-- 到位约 450ms 后会自动释放 PWM，减少持续抖动和供电占用。
+### 8.4 光照联动窗帘（仅白天 08:00-18:00）
 
-这能缓解“控制直流电机时舵机跟着动”的现象，但如果现场仍有联动，通常优先排查供电和布线，而不是应用层控制逻辑。
+- 强光进入阈值 >= 85%：切防眩（预设 1）
+- 弱光进入阈值 <= 30%：切补光（预设 3）
+- 防抖与滞回阈值：
+  - 防眩退出阈值 <= 70%
+  - 补光退出阈值 >= 45%
+- 冷却时间：10 分钟
+- 手动窗帘控制后 30 分钟内，自动化不接管
 
-## MQTT 说明
+### 8.5 时间源优先级
 
-当前版本里 MQTT 只保留占位接口，暂不作为本轮重点。等真实 Broker、主题和权限方案定下来，再恢复完整实现。
+1. NTP（联网后）
+2. DS3231 RTC（若可用且时间有效）
+3. 编译时刻 + 开机运行时长（回退方案）
 
-## 页面说明
+## 9. 传感器与执行器
 
-LittleFS 页面资源在 `web/` 目录，目前只保留 [`web/index.html`](web/index.html) 作为服务端控制页。
+### 9.1 传感器
 
-本地控制页当前包含这些优化：
+- DHT11：温度、湿度
+- 光照模拟量：百分比（反向映射）
+- MQ2 模拟量：百分比
 
-- 窗帘和风扇滑条采用轻节流发送，拖动时更顺。
-- 松手后会立即发送最终值，保证终点准确。
-- 滑动期间不再被状态轮询覆盖当前手势。
-- 状态轮询默认 1 秒一次，控制完成后会短延迟补拉一次状态。
+烟雾分级（由 MQ2 百分比映射）：
 
-## 构建与烧录
+- `<25`：`green`
+- `<50`：`blue`
+- `<75`：`yellow`
+- `>=75`：`red`
+
+### 9.2 风扇（PWM 调速）
+
+- 控制引脚：GPIO18
+- LEDC：通道 5、2kHz、8bit
+- 档位映射：
+  - `off` -> 0%
+  - `low` -> 30%
+  - `medium` -> 65%
+  - `high` -> 100%
+
+### 9.3 双舵机窗帘
+
+- 控制引脚：GPIO16、GPIO17
+- 双舵机反向联动
+- 仅动作时 attach，约 450ms 后自动 detach
+- 预设角度：`[0, 45, 90, 135, 180]`
+
+### 9.4 蜂鸣器
+
+- 控制引脚：GPIO12
+- LEDC：通道 6
+- 非阻塞队列播放，避免阻塞主循环
+
+## 10. 引脚定义
+
+- DHT11 数据：GPIO13
+- 光照模拟：GPIO4
+- MQ2 模拟：GPIO5
+- 风扇 PWM：GPIO18
+- 窗帘舵机 A：GPIO16
+- 窗帘舵机 B：GPIO17
+- 蜂鸣器：GPIO12
+- RTC I2C SDA：GPIO8
+- RTC I2C SCL：GPIO9
+
+## 11. 页面说明
+
+页面文件位于 `web/index.html`，当前页面特性：
+
+- 风扇与窗帘滑条轻节流发送（约 90ms）
+- 滑动结束立即发送最终值
+- 控制请求进行中时，状态轮询避免覆盖手势
+- 默认每 1 秒轮询 `/api/status`
+
+## 12. 构建与烧录
 
 在项目根目录执行：
 
@@ -177,7 +292,43 @@ pio run -t uploadfs
 pio device monitor -b 115200
 ```
 
-## 当前验证状态
+说明：
 
-- `pio run` 成功
-- `pio run -t buildfs` 成功
+- `data_dir` 已在 `platformio.ini` 中设置为 `web`，构建文件系统时会打包该目录。
+
+## 13. 日志与调试
+
+串口波特率：115200
+
+日志格式：
+
+```text
+[HH:MM:SS] [LEVEL] [TAG] message
+```
+
+常见标签：`SYSTEM`、`INIT`、`NET`、`SENSOR`、`HTTP`、`DHT`
+
+## 14. 硬件注意事项
+
+- 风扇电机不要直接连接 ESP32 GPIO，必须使用驱动器（如 ULN2003A/MOSFET 模块）。
+- 电机与舵机建议独立供电，并与 ESP32 共地。
+- 电源侧建议增加去耦与储能电容，降低舵机抖动和复位风险。
+- LEDC 通道建议保持当前分配：
+  - 舵机：自动分配低通道
+  - 风扇：通道 5
+  - 蜂鸣器：通道 6
+
+## 15. MQTT 状态
+
+当前 MQTT 为占位能力：
+
+- 主题和云端参数已集中定义
+- 主流程未启用真实 Broker 连接
+
+待 Broker、认证和主题规范确认后再启用完整云链路。
+
+## 16. 已知边界
+
+- 红外控制不在当前交付范围
+- 云端控制链路暂未作为主流程验证
+- 家庭 Wi-Fi 凭据暂存于代码常量，尚未做运行时配置化

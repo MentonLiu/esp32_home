@@ -5,6 +5,12 @@
 
 #include <ArduinoJson.h>
 
+namespace
+{
+    constexpr uint8_t kRainOnThresholdPercent = 25;
+    constexpr uint8_t kRainOffThresholdPercent = 15;
+} // namespace
+
 SensorDataProcessor::SensorDataProcessor(SensorHub &sensorHub) : sensorHub_(sensorHub) {}
 
 void SensorDataProcessor::begin()
@@ -62,6 +68,8 @@ String SensorDataProcessor::buildSensorJson() const
     doc["humidityPercent"] = latest_.humidityPercent;
     doc["lightPercent"] = latest_.lightPercent;
     doc["mq2Percent"] = latest_.mq2Percent;
+    doc["rainPercent"] = latest_.rainPercent;
+    doc["isRaining"] = latest_.isRaining;
     doc["smokeLevel"] = latest_.smokeLevel;
     doc["error"] = latest_.hasError;
     doc["errorMessage"] = latest_.errorMessage;
@@ -82,6 +90,8 @@ String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip
     doc["humidityPercent"] = latest_.humidityPercent;
     doc["lightPercent"] = latest_.lightPercent;
     doc["mq2Percent"] = latest_.mq2Percent;
+    doc["rainPercent"] = latest_.rainPercent;
+    doc["isRaining"] = latest_.isRaining;
     doc["smokeLevel"] = latest_.smokeLevel;
     doc["fanMode"] = fanModeToString(controllerState.fanMode);
     doc["fanSpeedPercent"] = controllerState.fanSpeedPercent;
@@ -95,6 +105,8 @@ String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip
     sensor["humidityPercent"] = latest_.humidityPercent;
     sensor["lightPercent"] = latest_.lightPercent;
     sensor["mq2Percent"] = latest_.mq2Percent;
+    sensor["rainPercent"] = latest_.rainPercent;
+    sensor["isRaining"] = latest_.isRaining;
     sensor["smokeLevel"] = latest_.smokeLevel;
     sensor["timestamp"] = latest_.timestamp;
     sensor["error"] = latest_.hasError;
@@ -122,6 +134,22 @@ void SensorDataProcessor::normalize(const SensorSnapshot &snapshot)
     latest_.humidityPercent = snapshot.humidityPercent;
     latest_.lightPercent = snapshot.lightPercent;
     latest_.mq2Percent = snapshot.mq2Percent;
+    latest_.rainPercent = snapshot.rainPercent;
+
+    // 下雨判定使用滞回阈值，避免临界值抖动。
+    if (rainingState_)
+    {
+        if (snapshot.rainPercent <= kRainOffThresholdPercent)
+        {
+            rainingState_ = false;
+        }
+    }
+    else if (snapshot.rainPercent >= kRainOnThresholdPercent)
+    {
+        rainingState_ = true;
+    }
+    latest_.isRaining = rainingState_;
+
     latest_.smokeLevel = snapshot.smokeLevel;
     latest_.hasError = snapshot.hasError;
     latest_.errorMessage = snapshot.errorMessage;

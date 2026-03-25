@@ -45,6 +45,10 @@ struct StandardSensorData
     uint8_t lightPercent = 0;
     // MQ2 归一化百分比（0-100）。
     uint8_t mq2Percent = 0;
+    // 雨滴归一化百分比（0-100）。
+    uint8_t rainPercent = 0;
+    // 是否处于下雨状态（由阈值与滞回策略计算）。
+    bool isRaining = false;
     // 烟雾等级标签（green/blue/yellow/red）。
     String smokeLevel = "green";
     // 采样链路是否有错误。

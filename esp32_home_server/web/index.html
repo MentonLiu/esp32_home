@@ -309,6 +309,14 @@
                             <div class="label">烟雾等级</div>
                             <div class="value" id="smokeLevelValue">--</div>
                         </article>
+                        <article class="sensor-card">
+                            <div class="label">雨滴强度</div>
+                            <div class="value" id="rainValue">--</div>
+                        </article>
+                        <article class="sensor-card">
+                            <div class="label">降雨状态</div>
+                            <div class="value" id="rainStateValue">--</div>
+                        </article>
                     </div>
                 </section>
 
@@ -428,6 +436,8 @@
                 document.getElementById('lightValue').textContent = fmt(data.lightPercent, ' %');
                 document.getElementById('smokeValue').textContent = fmt(data.mq2Percent, ' %');
                 document.getElementById('smokeLevelValue').textContent = data.smokeLevel || '--';
+                document.getElementById('rainValue').textContent = fmt(data.rainPercent, ' %');
+                document.getElementById('rainStateValue').textContent = data.isRaining ? '下雨中' : '无降雨';
 
                 // 执行器区域。
                 document.getElementById('curtainAngleText').textContent = `角度 ${data.curtainAngle}°`;
@@ -443,12 +453,14 @@
                     fanRange.value = data.fanSpeedPercent;
                 }
 
-                // 系统摘要优先级：高烟雾 > 网络模式。
-                const headline = data.mq2Percent >= 75
-                    ? '烟雾浓度过高，已自动联动风扇'
-                    : data.mode === 'cloud'
-                        ? '系统运行在路由器联网模式'
-                        : '系统运行在本地热点模式';
+                // 系统摘要优先级：下雨 > 高烟雾 > 网络模式。
+                const headline = data.isRaining
+                    ? '检测到降雨，窗帘防雨联动已接管'
+                    : data.mq2Percent >= 75
+                        ? '烟雾浓度过高，已自动联动风扇'
+                        : data.mode === 'cloud'
+                            ? '系统运行在路由器联网模式'
+                            : '系统运行在本地热点模式';
                 const details = `风扇 ${data.fanSpeedPercent}% · 窗帘 ${data.curtainAngle}°`;
 
                 document.getElementById('systemHeadline').textContent = headline;

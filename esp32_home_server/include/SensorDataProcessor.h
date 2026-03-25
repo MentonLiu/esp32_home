@@ -36,6 +36,8 @@ private:
 
     SensorHub &sensorHub_;
     StandardSensorData latest_;
+    // 雨滴状态滞回，避免阈值边界抖动导致联动来回切换。
+    bool rainingState_ = false;
     // 标记是否有未发布的新样本。
     bool hasFreshSample_ = false;
     // 上次发布时间戳，用于节流。

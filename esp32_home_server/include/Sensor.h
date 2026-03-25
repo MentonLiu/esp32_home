@@ -14,6 +14,7 @@ struct SensorSnapshot
     float humidityPercent = 0.0F;
     uint8_t lightPercent = 0;
     uint8_t mq2Percent = 0;
+    uint8_t rainPercent = 0;
     String smokeLevel = "green";
     bool hasError = false;
     String errorMessage;
@@ -61,6 +62,7 @@ public:
     SensorHub(uint8_t dhtPin,
               uint8_t lightPin,
               uint8_t mq2Pin,
+              uint8_t rainPin,
               uint8_t dhtType = DHT11);
 
     // 初始化全部传感器。
@@ -77,6 +79,7 @@ private:
     DhtSensor dht_;
     AnalogPercentSensor light_;
     AnalogPercentSensor mq2_;
+    AnalogPercentSensor rain_;
     SensorSnapshot latest_;
     unsigned long lastSampleMs_ = 0;
 };

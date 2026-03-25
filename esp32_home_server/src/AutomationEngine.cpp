@@ -23,6 +23,9 @@ namespace
     constexpr uint8_t kLowLightOffThresholdPercent = 45;
     constexpr unsigned long kLightCurtainCooldownMs = 10UL * 60UL * 1000UL;
     constexpr unsigned long kCurtainManualOverrideMs = 30UL * 60UL * 1000UL;
+    constexpr unsigned long kRainDetectDebounceMs = 3000UL;
+    constexpr unsigned long kRainClearHoldMs = 180000UL;
+    constexpr unsigned long kRainCurtainCooldownMs = 60000UL;
 
     // 将日期压缩为“天序号”，用于每日只触发一次的去重逻辑。
     uint32_t dayStampFromDateTime(const DateTime &timePoint)
@@ -43,19 +46,19 @@ AutomationEngine::AutomationEngine(ConnectivityManager &net,
     : net_(net),
       commandProcessor_(commandProcessor),
       statusReporter_(statusReporter),
-            fallbackBaseTime_(DateTime(F(__DATE__), F(__TIME__)))
+      fallbackBaseTime_(DateTime(F(__DATE__), F(__TIME__)))
 {
 }
 
 void AutomationEngine::begin()
 {
-        // 初始化 RTC 所在 I2C 总线。
-        Wire.begin(pins::RTC_I2C_SDA, pins::RTC_I2C_SCL);
-        rtcAvailable_ = rtc_.begin();
+    // 初始化 RTC 所在 I2C 总线。
+    Wire.begin(pins::RTC_I2C_SDA, pins::RTC_I2C_SCL);
+    rtcAvailable_ = rtc_.begin();
     // 记录回退时钟基准点。
     fallbackBaseMillis_ = millis();
     ensureTimeSource();
-        syncRtcFromNtp();
+    syncRtcFromNtp();
 }
 
 void AutomationEngine::loop(const StandardSensorData &sensorData)
@@ -76,6 +79,7 @@ void AutomationEngine::loop(const StandardSensorData &sensorData)
     // 传感联动可高频检查。
     handleTemperatureAutomation(sensorData);
     handleSmokeAutomation(sensorData);
+    handleRainAutomation(sensorData);
 }
 
 void AutomationEngine::ensureTimeSource()
@@ -154,7 +158,7 @@ void AutomationEngine::handleCurtainSchedule(const DateTime &now)
     const uint32_t dayStamp = dayStampFromDateTime(now);
 
     // 每日 07:00 自动开窗帘，且同一天只触发一次。
-    if (now.hour() == 7 && now.minute() == 0 && lastOpenDayStamp_ != dayStamp)
+    if (!rainLockActive_ && now.hour() == 7 && now.minute() == 0 && lastOpenDayStamp_ != dayStamp)
     {
         commandProcessor_.setCurtainPreset(4);
         lastOpenDayStamp_ = dayStamp;
@@ -208,8 +212,67 @@ void AutomationEngine::handleSmokeAutomation(const StandardSensorData &sensorDat
     }
 }
 
+void AutomationEngine::handleRainAutomation(const StandardSensorData &sensorData)
+{
+    const unsigned long nowMs = millis();
+
+    if (sensorData.isRaining)
+    {
+        rainClearedSinceMs_ = 0;
+        if (rainDetectedSinceMs_ == 0)
+        {
+            rainDetectedSinceMs_ = nowMs;
+        }
+
+        if (!rainLockActive_ && nowMs - rainDetectedSinceMs_ >= kRainDetectDebounceMs)
+        {
+            rainLockActive_ = true;
+            publishStatus(mqtt_upstream::statusTopic(), "automation", "rain_detected_lock_curtain");
+        }
+
+        // 激活雨滴锁后，周期受限地执行一次关窗帘动作，防止误复位后未关严。
+        if (rainLockActive_ && nowMs - lastRainCurtainActionMs_ >= kRainCurtainCooldownMs)
+        {
+            lastRainCurtainActionMs_ = nowMs;
+            commandProcessor_.setCurtainPreset(0);
+            publishStatus(mqtt_upstream::statusTopic(), "automation", "curtain_close_by_rain");
+        }
+        return;
+    }
+
+    // 非雨状态时重置检测时间，且仅在锁定状态下记录清除时间。
+    rainDetectedSinceMs_ = 0;
+    if (!rainLockActive_)
+    {
+        return;
+    }
+
+    // 雨停后需要持续一段时间才解除锁定，避免阈值边界抖动导致联动来回切换。
+    if (rainClearedSinceMs_ == 0)
+    {
+        rainClearedSinceMs_ = nowMs;
+        return;
+    }
+
+    // 雨停稳定后全开窗帘并释放锁定。
+    if (nowMs - rainClearedSinceMs_ >= kRainClearHoldMs)
+    {
+        rainLockActive_ = false;
+        rainClearedSinceMs_ = 0;
+        commandProcessor_.setCurtainPreset(4);
+        publishStatus(mqtt_upstream::statusTopic(), "automation", "curtain_full_open_after_rain");
+        publishStatus(mqtt_upstream::statusTopic(), "automation", "rain_cleared_release_curtain_lock");
+    }
+}
+
 void AutomationEngine::handleLightAutomation(const StandardSensorData &sensorData, const DateTime &now)
 {
+    // 雨滴锁定期间不允许光照联动重新开窗帘。
+    if (rainLockActive_)
+    {
+        return;
+    }
+
     // 仅白天启用光照联动，避免夜间误动作。
     if (!isDaytimeWindow(now))
     {
@@ -217,11 +280,11 @@ void AutomationEngine::handleLightAutomation(const StandardSensorData &sensorDat
     }
 
     // 用户手动控制后 30 分钟内不接管窗帘。
-    const unsigned long lastManualMs = commandProcessor_.lastManualCurtainCommandMs();
-    if (lastManualMs > 0 && millis() - lastManualMs < kCurtainManualOverrideMs)
-    {
-        return;
-    }
+    // const unsigned long lastManualMs = commandProcessor_.lastManualCurtainCommandMs();
+    // if (lastManualMs > 0 && millis() - lastManualMs < kCurtainManualOverrideMs)
+    // {
+    //     return;
+    // }
 
     // 触发动作冷却，防止频繁摆动。
     if (millis() - lastLightCurtainActionMs_ < kLightCurtainCooldownMs)
@@ -240,14 +303,14 @@ void AutomationEngine::handleLightAutomation(const StandardSensorData &sensorDat
     }
 
     // 低光时打开到 3/4。
-    if (lightCurtainMode_ != LightCurtainMode::DaylightBoost && sensorData.lightPercent <= kLowLightOnThresholdPercent)
-    {
-        lightCurtainMode_ = LightCurtainMode::DaylightBoost;
-        lastLightCurtainActionMs_ = millis();
-        commandProcessor_.setCurtainPreset(3);
-        publishStatus(mqtt_upstream::statusTopic(), "automation", "curtain_daylight_boost");
-        return;
-    }
+    // if (lightCurtainMode_ != LightCurtainMode::DaylightBoost && sensorData.lightPercent <= kLowLightOnThresholdPercent)
+    // {
+    //     lightCurtainMode_ = LightCurtainMode::DaylightBoost;
+    //     lastLightCurtainActionMs_ = millis();
+    //     commandProcessor_.setCurtainPreset(3);
+    //     publishStatus(mqtt_upstream::statusTopic(), "automation", "curtain_daylight_boost");
+    //     return;
+    // }
 
     // 亮度回到中间区间后释放模式锁定，允许下一次联动。
     if (lightCurtainMode_ == LightCurtainMode::AntiGlare && sensorData.lightPercent <= kBrightLightOffThresholdPercent)

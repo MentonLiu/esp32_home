@@ -63,10 +63,12 @@ uint8_t AnalogPercentSensor::readPercent() const
 SensorHub::SensorHub(uint8_t dhtPin,
                      uint8_t lightPin,
                      uint8_t mq2Pin,
+                     uint8_t rainPin,
                      uint8_t dhtType)
     : dht_(dhtPin, dhtType),
       light_(lightPin, true),
-      mq2_(mq2Pin, false)
+      mq2_(mq2Pin, false),
+      rain_(rainPin, true)
 {
     // 构造阶段仅绑定引脚与参数，不做硬件访问。
 }
@@ -81,6 +83,8 @@ void SensorHub::begin()
     LOG_DEBUG("SENSOR", "光照传感器初始化完成");
     mq2_.begin();
     LOG_DEBUG("SENSOR", "MQ2烟雾传感器初始化完成");
+    rain_.begin();
+    LOG_DEBUG("SENSOR", "雨滴传感器初始化完成");
     LOG_INFO("SENSOR", "所有传感器已就绪");
 }
 
@@ -111,15 +115,16 @@ bool SensorHub::poll(unsigned long intervalMs)
 
     latest_.lightPercent = light_.readPercent();
     latest_.mq2Percent = mq2_.readPercent();
+    latest_.rainPercent = rain_.readPercent();
     latest_.smokeLevel = smokeLevelFromPercent(latest_.mq2Percent);
 
     // 每30秒输出一次完整的传感器状态
     static unsigned long lastDebugLogMs = 0;
     if (now - lastDebugLogMs > 30000)
     {
-        LOG_DEBUG("SENSOR", "传感器状态: T=%.1f°C H=%.1f%% 光=%d%% MQ2=%d%% 烟=%s",
+        LOG_DEBUG("SENSOR", "传感器状态: T=%.1f°C H=%.1f%% 光=%d%% MQ2=%d%% 雨=%d%% 烟=%s",
                   latest_.temperatureC, latest_.humidityPercent,
-                  latest_.lightPercent, latest_.mq2Percent,
+                  latest_.lightPercent, latest_.mq2Percent, latest_.rainPercent,
                   latest_.smokeLevel.c_str());
         lastDebugLogMs = now;
     }

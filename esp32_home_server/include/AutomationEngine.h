@@ -5,8 +5,9 @@
 // 1) 每日定时窗帘：07:00 自动开到预设档位，22:00 自动关闭。
 // 2) 温度联动风扇：高温自动切高档，温度回落后退出高温增强状态。
 // 3) 烟雾联动：烟雾达到阈值自动开高档风扇，并在高危区间周期性蜂鸣提醒。
-// 4) 光照联动窗帘：白天按亮度自动防眩/补光，带手动优先与动作冷却机制。
-// 5) 时间源管理：优先使用 NTP，次选 RTC，失败时回退到编译时刻+运行时长。
+// 4) 雨滴联动窗帘：检测到下雨后优先关闭窗帘，雨停稳定后全开并释放联动锁。
+// 5) 光照联动窗帘：白天按亮度自动防眩/补光，带手动优先与动作冷却机制。
+// 6) 时间源管理：优先使用 NTP，次选 RTC，失败时回退到编译时刻+运行时长。
 
 #ifndef AUTOMATION_ENGINE_H
 #define AUTOMATION_ENGINE_H
@@ -45,6 +46,8 @@ private:
     void handleTemperatureAutomation(const StandardSensorData &sensorData);
     // 烟雾浓度联动规则。
     void handleSmokeAutomation(const StandardSensorData &sensorData);
+    // 雨滴联动窗帘规则。
+    void handleRainAutomation(const StandardSensorData &sensorData);
     // 光照联动窗帘规则。
     void handleLightAutomation(const StandardSensorData &sensorData, const DateTime &now);
     // 统一状态/告警消息上报入口。
@@ -69,8 +72,12 @@ private:
     // 限流与去重状态。
     unsigned long lastScheduleCheckMs_ = 0;
     unsigned long lastHighSmokeBeepMs_ = 0;
+    unsigned long rainDetectedSinceMs_ = 0;
+    unsigned long rainClearedSinceMs_ = 0;
+    unsigned long lastRainCurtainActionMs_ = 0;
     uint32_t lastOpenDayStamp_ = UINT32_MAX;
     uint32_t lastCloseDayStamp_ = UINT32_MAX;
+    bool rainLockActive_ = false;
 
     bool tempFanBoostActive_ = false;
     unsigned long lastTempFanActionMs_ = 0;
