@@ -4,8 +4,29 @@
 #include "ConnectivityManager.h"
 
 #include <ESPmDNS.h>
+#include <ctype.h>
 
 #include "Logger.h"
+
+namespace
+{
+    bool isIpv4Literal(const char *host)
+    {
+        if (host == nullptr || *host == '\0')
+        {
+            return false;
+        }
+
+        for (const char *p = host; *p != '\0'; ++p)
+        {
+            if (!isdigit(static_cast<unsigned char>(*p)) && *p != '.')
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+} // namespace
 
 ConnectivityManager *ConnectivityManager::instance_ = nullptr;
 
@@ -26,13 +47,12 @@ ConnectivityManager::ConnectivityManager(const char *stationSsid,
 
 void ConnectivityManager::begin()
 {
-    // 本地优先：先启用 AP+STA，确保本地控制面可第一时间可用。
-    WiFi.mode(WIFI_AP_STA);
+    // 局域网优先：仅启用 STA，通过路由器内网地址访问控制页面。
+    WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true);
     mqttClient_.setCallback(ConnectivityManager::handleMqttDispatch);
 
-    // 启动本地热点，随后再异步尝试连家庭路由器。
-    startLocalAp();
+    // 不自动开启 AP；仅尝试连接家庭路由器。
     mode_ = OperatingMode::LocalAP;
 
     // 非阻塞发起 STA 连接，避免启动阶段长时间不可控。
@@ -189,6 +209,7 @@ void ConnectivityManager::evaluateMode()
     if (isInternetConnected())
     {
         stationConnectInProgress_ = false;
+        // STA 联网成功后确保 AP 关闭，避免切到热点模式。
         stopLocalAp();
         mode_ = OperatingMode::Cloud;
         ensureMdnsState();
@@ -196,8 +217,8 @@ void ConnectivityManager::evaluateMode()
         return;
     }
 
-    // 否则开启本地热点供离线控制。
-    startLocalAp();
+    // 未连上路由器时不自动开启 AP，等待 STA 重连。
+    stopLocalAp();
     mode_ = OperatingMode::LocalAP;
     ensureMdnsState();
     announceAccessUrl();
@@ -260,14 +281,14 @@ void ConnectivityManager::announceAccessUrl()
     lastAnnouncedMode_ = mode_;
     lastAnnouncedIp_ = ip;
 
-    LOG_INFO("NET", "页面访问地址: http://%s/", ip.c_str());
     if (mode_ == OperatingMode::Cloud)
     {
+        LOG_INFO("NET", "页面访问地址: http://%s/", ip.c_str());
         LOG_INFO("NET", "已联网，可尝试 mDNS 地址: http://%s/", hostName().c_str());
     }
     else if (mode_ == OperatingMode::LocalAP)
     {
-        LOG_INFO("NET", "本地 AP 模式已开启，请连接热点后访问上述地址");
+        LOG_WARN("NET", "当前未连接路由器，局域网网页暂不可用，正在重连 STA...");
     }
 }
 
@@ -290,6 +311,22 @@ bool ConnectivityManager::ensureMqttConnected()
         return false;
     }
     lastMqttRetryMs_ = millis();
+
+    // 域名场景先做一次显式 DNS 解析，失败则本轮放弃 MQTT，不影响本地网页可用性。
+    if (!isIpv4Literal(mqttHost_))
+    {
+        IPAddress resolved;
+        if (WiFi.hostByName(mqttHost_, resolved) != 1)
+        {
+            LOG_WARN("MQTT", "DNS 解析失败: %s", mqttHost_);
+            return false;
+        }
+        mqttClient_.setServer(resolved, mqttPort_);
+    }
+    else
+    {
+        mqttClient_.setServer(mqttHost_, mqttPort_);
+    }
 
     bool connected = false;
     if (mqttUser_ != nullptr && strlen(mqttUser_) > 0)

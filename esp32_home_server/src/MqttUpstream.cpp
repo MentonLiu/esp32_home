@@ -6,13 +6,13 @@
 namespace
 {
     // 集中管理云端服务地址与主题字面量。
-    // 当前为占位配置，后续接入真实 Broker 时只需改这里。
+    // 当前使用 NAS 上的 EMQX 映射地址。
     constexpr mqtt_upstream::CloudConfig kCloudConfig = {
-        "example.mosquitto.server",
-        1883,
+        "frp-era.com",
+        10883,
         "esp32-home-server",
-        nullptr,
-        nullptr};
+        "esp32_server",
+        "lbl450981"};
 
     // 主题命名约定：esp32/home/<domain>
     constexpr const char *kSensorTopic = "esp32/home/sensors";

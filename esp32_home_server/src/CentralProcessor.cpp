@@ -5,6 +5,7 @@
 
 #include "pins.h"
 #include "Logger.h"
+#include "MqttUpstream.h"
 
 namespace
 {
@@ -60,9 +61,31 @@ void CentralProcessor::begin()
     net_.begin();
     LOG_INFO("INIT", "网络初始化完成");
 
-    // MQTT 方案尚未定稿，本轮先不启用实际链路。
-    // net_.configureCloudMqtt(...);
-    // net_.setMqttHandler(...);
+    // 配置云端 MQTT（EMQX）。
+    const auto &cloud = mqtt_upstream::cloudConfig();
+    net_.configureCloudMqtt(cloud.host,
+                            cloud.port,
+                            cloud.clientId,
+                            cloud.user,
+                            cloud.password,
+                            mqtt_upstream::controlTopic());
+    // 下行控制消息统一复用本地 JSON 指令处理器。
+    net_.setMqttHandler([this](char *topic, uint8_t *payload, unsigned int length)
+                        {
+        if (strcmp(topic, mqtt_upstream::controlTopic()) != 0)
+        {
+            return;
+        }
+
+        String requestBody;
+        requestBody.reserve(length + 1);
+        for (unsigned int i = 0; i < length; ++i)
+        {
+            requestBody += static_cast<char>(payload[i]);
+        }
+
+        const CommandResult result = commandProcessor_.processCommandJson(requestBody, CommandSource::CloudMqtt);
+        publishStatus(mqtt_upstream::statusTopic(), result.accepted ? result.type : "error", result.message); });
 
     // 4) 启动自动化和本地业务程序。
     LOG_INFO("INIT", "启动自动化引擎...");
@@ -81,7 +104,10 @@ void CentralProcessor::loop()
 
     // 采样并推进发布节流状态。
     sensorDataProcessor_.loop();
-    sensorDataProcessor_.shouldPublish();
+    if (sensorDataProcessor_.shouldPublish())
+    {
+        net_.mqttPublish(mqtt_upstream::sensorTopic(), sensorDataProcessor_.buildSensorJson());
+    }
 
     // 自动化联动依赖最新传感器数据。
     automationEngine_.loop(sensorDataProcessor_.latest());
@@ -89,8 +115,15 @@ void CentralProcessor::loop()
 
 void CentralProcessor::publishStatus(const char *topic, const String &type, const String &message)
 {
-    // 当前阶段仅串口打印，topic 预留给未来 MQTT 上报。
-    (void)topic;
+    // 云模式时把状态同步到 MQTT；本地模式发送失败也不影响串口日志。
+    if (topic != nullptr)
+    {
+        String payload;
+        payload.reserve(96);
+        payload = "{\"type\":\"" + type + "\",\"message\":\"" + message + "\"}";
+        net_.mqttPublish(topic, payload);
+    }
+
     Serial.print("[status] ");
     Serial.print(type);
     Serial.print(" -> ");
