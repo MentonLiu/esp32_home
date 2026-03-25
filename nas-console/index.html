@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ESP32 Home MQTT Console</title>
+    <style>
+        :root {
+            --bg0: #f8f3ea;
+            --bg1: #e8f1ef;
+            --ink: #152321;
+            --muted: #5f6c68;
+            --card: rgba(255, 255, 255, 0.74);
+            --line: rgba(21, 35, 33, 0.14);
+            --primary: #0f766e;
+            --secondary: #e36414;
+            --danger: #b4233c;
+            --ok: #227a52;
+            --warn: #c07a0c;
+            --shadow: 0 22px 40px rgba(21, 35, 33, 0.16);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            color: var(--ink);
+            font-family: "Space Grotesk", "Noto Sans SC", "PingFang SC", sans-serif;
+            background:
+                radial-gradient(circle at 10% 8%, rgba(15, 118, 110, 0.22), transparent 28%),
+                radial-gradient(circle at 92% 6%, rgba(227, 100, 20, 0.22), transparent 24%),
+                linear-gradient(155deg, var(--bg0), var(--bg1));
+            min-height: 100vh;
+        }
+
+        .page {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 20px 14px 34px;
+        }
+
+        .hero,
+        .panel {
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            background: var(--card);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(8px);
+        }
+
+        .hero {
+            padding: 22px;
+            display: grid;
+            gap: 14px;
+        }
+
+        .hero-top {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        h1,
+        h2,
+        h3 {
+            margin: 0;
+            letter-spacing: 0.3px;
+        }
+
+        .sub {
+            margin: 8px 0 0;
+            color: var(--muted);
+            line-height: 1.6;
+            font-size: 0.95rem;
+            max-width: 760px;
+        }
+
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.85);
+            font-weight: 700;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 99px;
+            display: inline-block;
+            background: #999;
+        }
+
+        .dot.offline {
+            background: var(--danger);
+        }
+
+        .dot.connecting {
+            background: var(--warn);
+        }
+
+        .dot.online {
+            background: var(--ok);
+        }
+
+        .grid {
+            margin-top: 14px;
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 14px;
+        }
+
+        .stack {
+            display: grid;
+            gap: 14px;
+        }
+
+        .panel {
+            padding: 16px;
+        }
+
+        .tiny {
+            color: var(--muted);
+            font-size: 0.87rem;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(180px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        label {
+            display: grid;
+            gap: 6px;
+            font-size: 0.86rem;
+            color: var(--muted);
+        }
+
+        input,
+        select,
+        textarea {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 10px 11px;
+            outline: none;
+            font-size: 0.95rem;
+            color: var(--ink);
+            background: rgba(255, 255, 255, 0.9);
+            font-family: inherit;
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.18);
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-top: 12px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 12px;
+            padding: 10px 14px;
+            color: white;
+            font-weight: 700;
+            background: var(--primary);
+            cursor: pointer;
+        }
+
+        button.secondary {
+            background: var(--secondary);
+        }
+
+        button.danger {
+            background: var(--danger);
+        }
+
+        button.ghost {
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.82);
+            color: var(--ink);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .sensor-grid {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        .card {
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .card .k {
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-bottom: 7px;
+        }
+
+        .card .v {
+            font-size: 1.22rem;
+            font-weight: 700;
+        }
+
+        .split {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .range-box {
+            margin-top: 12px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.78);
+        }
+
+        .range-title {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.88rem;
+            margin-bottom: 8px;
+            color: var(--muted);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--primary);
+        }
+
+        .log {
+            margin-top: 12px;
+            height: 290px;
+            overflow: auto;
+            border-radius: 12px;
+            padding: 10px;
+            border: 1px dashed var(--line);
+            background: rgba(255, 255, 255, 0.78);
+            font-family: "SF Mono", "Menlo", monospace;
+            font-size: 0.83rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .mono {
+            font-family: "SF Mono", "Menlo", monospace;
+            font-size: 0.84rem;
+        }
+
+        @media (max-width: 920px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <section class="hero">
+            <div class="hero-top">
+                <div>
+                    <h1>ESP32 Home MQTT 控制台</h1>
+                    <p class="sub">运行在 NAS 局域网网页中。通过 WebSocket 连接 EMQX，订阅传感器与状态主题，发布风扇/窗帘控制命令。</p>
+                </div>
+                <div class="status-chip"><span id="connDot" class="dot offline"></span><span id="connText">未连接</span>
+                </div>
+            </div>
+            <div class="tiny">默认主题：<span class="mono">esp32/home/sensors</span>、<span
+                    class="mono">esp32/home/status</span>、<span class="mono">esp32/home/control</span></div>
+        </section>
+
+        <div class="grid">
+            <div class="stack">
+                <section class="panel">
+                    <h2>MQTT 连接</h2>
+                    <div class="config-grid">
+                        <label>WebSocket URL
+                            <input id="wsUrl" value="ws://192.168.31.204:8083/mqtt" />
+                        </label>
+                        <label>Client ID
+                            <input id="clientId" value="nas-console-01" />
+                        </label>
+                        <label>用户名
+                            <input id="username" value="test_link" />
+                        </label>
+                        <label>密码
+                            <input id="password" type="password" value="lbl450981" />
+                        </label>
+                        <label>传感器主题
+                            <input id="sensorTopic" value="esp32/home/sensors" />
+                        </label>
+                        <label>状态主题
+                            <input id="statusTopic" value="esp32/home/status" />
+                        </label>
+                        <label>告警主题
+                            <input id="alarmTopic" value="esp32/home/alarm" />
+                        </label>
+                        <label>控制主题
+                            <input id="controlTopic" value="esp32/home/control" />
+                        </label>
+                    </div>
+                    <div class="row">
+                        <button id="connectBtn">连接</button>
+                        <button id="disconnectBtn" class="danger">断开</button>
+                        <button id="saveBtn" class="ghost">保存配置到本地</button>
+                        <span class="tiny" id="subState">等待连接</span>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h2>实时数据</h2>
+                    <div class="row tiny">
+                        <span id="lastSensorAt">传感器消息：--</span>
+                        <span id="lastStatusAt">状态消息：--</span>
+                    </div>
+                    <div class="sensor-grid">
+                        <div class="card">
+                            <div class="k">温度</div>
+                            <div id="temperature" class="v">--</div>
+                        </div>
+                        <div class="card">
+                            <div class="k">湿度</div>
+                            <div id="humidity" class="v">--</div>
+                        </div>
+                        <div class="card">
+                            <div class="k">光照</div>
+                            <div id="light" class="v">--</div>
+                        </div>
+                        <div class="card">
+                            <div class="k">MQ2</div>
+                            <div id="mq2" class="v">--</div>
+                        </div>
+                        <div class="card">
+                            <div class="k">雨量</div>
+                            <div id="rain" class="v">--</div>
+                        </div>
+                        <div class="card">
+                            <div class="k">降雨</div>
+                            <div id="isRaining" class="v">--</div>
+                        </div>
+                        <div class="card">
+                            <div class="k">烟雾等级</div>
+                            <div id="smokeLevel" class="v">--</div>
+                        </div>
+                        <div class="card">
+                            <div class="k">设备状态</div>
+                            <div id="statusType" class="v">--</div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="stack">
+                <section class="panel">
+                    <h2>控制台</h2>
+                    <h3 class="tiny">风扇模式</h3>
+                    <div class="row">
+                        <button data-fan-mode="off" class="danger">关闭</button>
+                        <button data-fan-mode="low">低速</button>
+                        <button data-fan-mode="medium" class="secondary">中速</button>
+                        <button data-fan-mode="high">高速</button>
+                    </div>
+                    <div class="range-box">
+                        <div class="range-title"><span>风扇百分比</span><strong id="fanSpeedLabel">0%</strong></div>
+                        <input id="fanSpeed" type="range" min="0" max="100" value="0" />
+                        <div class="row">
+                            <button id="sendFanSpeed" class="ghost">发送风扇百分比</button>
+                        </div>
+                    </div>
+
+                    <h3 class="tiny" style="margin-top:14px;">窗帘控制</h3>
+                    <div class="row">
+                        <button data-curtain-preset="0" class="danger">关</button>
+                        <button data-curtain-preset="1">1/4</button>
+                        <button data-curtain-preset="2">1/2</button>
+                        <button data-curtain-preset="3" class="secondary">3/4</button>
+                        <button data-curtain-preset="4">全开</button>
+                    </div>
+                    <div class="range-box">
+                        <div class="range-title"><span>窗帘角度</span><strong id="curtainAngleLabel">90°</strong></div>
+                        <input id="curtainAngle" type="range" min="0" max="180" value="90" />
+                        <div class="row">
+                            <button id="sendCurtainAngle" class="ghost">发送窗帘角度</button>
+                        </div>
+                    </div>
+
+                    <div class="split">
+                        <label>自定义命令 JSON
+                            <textarea id="customJson" rows="5">{"device":"fan","mode":"high"}</textarea>
+                        </label>
+                        <label>最近状态消息
+                            <textarea id="statusMessage" rows="5" readonly></textarea>
+                        </label>
+                    </div>
+                    <div class="row">
+                        <button id="sendCustom">发送自定义命令</button>
+                        <button id="clearLog" class="ghost">清空日志</button>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h2>消息日志</h2>
+                    <div id="log" class="log">[bootstrap] 页面已加载，等待连接。\n</div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script>
+        const state = {
+            client: null,
+            connected: false,
+            reconnectDelayMs: 1000,
+            lastFanSentAt: 0,
+            lastCurtainSentAt: 0
+        };
+
+        const els = {
+            wsUrl: document.getElementById('wsUrl'),
+            clientId: document.getElementById('clientId'),
+            username: document.getElementById('username'),
+            password: document.getElementById('password'),
+            sensorTopic: document.getElementById('sensorTopic'),
+            statusTopic: document.getElementById('statusTopic'),
+            alarmTopic: document.getElementById('alarmTopic'),
+            controlTopic: document.getElementById('controlTopic'),
+            connectBtn: document.getElementById('connectBtn'),
+            disconnectBtn: document.getElementById('disconnectBtn'),
+            saveBtn: document.getElementById('saveBtn'),
+            subState: document.getElementById('subState'),
+            connDot: document.getElementById('connDot'),
+            connText: document.getElementById('connText'),
+            temperature: document.getElementById('temperature'),
+            humidity: document.getElementById('humidity'),
+            light: document.getElementById('light'),
+            mq2: document.getElementById('mq2'),
+            rain: document.getElementById('rain'),
+            isRaining: document.getElementById('isRaining'),
+            smokeLevel: document.getElementById('smokeLevel'),
+            statusType: document.getElementById('statusType'),
+            statusMessage: document.getElementById('statusMessage'),
+            lastSensorAt: document.getElementById('lastSensorAt'),
+            lastStatusAt: document.getElementById('lastStatusAt'),
+            fanSpeed: document.getElementById('fanSpeed'),
+            fanSpeedLabel: document.getElementById('fanSpeedLabel'),
+            curtainAngle: document.getElementById('curtainAngle'),
+            curtainAngleLabel: document.getElementById('curtainAngleLabel'),
+            sendFanSpeed: document.getElementById('sendFanSpeed'),
+            sendCurtainAngle: document.getElementById('sendCurtainAngle'),
+            customJson: document.getElementById('customJson'),
+            sendCustom: document.getElementById('sendCustom'),
+            clearLog: document.getElementById('clearLog'),
+            log: document.getElementById('log')
+        };
+
+        function nowText() {
+            return new Date().toLocaleTimeString();
+        }
+
+        function log(line) {
+            els.log.textContent += `[${nowText()}] ${line}\n`;
+            els.log.scrollTop = els.log.scrollHeight;
+        }
+
+        function setConnection(status, text) {
+            els.connDot.className = `dot ${status}`;
+            els.connText.textContent = text;
+            state.connected = status === 'online';
+        }
+
+        function loadConfig() {
+            const raw = localStorage.getItem('nas-console-config');
+            if (!raw) return;
+            try {
+                const cfg = JSON.parse(raw);
+                Object.keys(cfg).forEach((key) => {
+                    if (els[key]) {
+                        els[key].value = cfg[key];
+                    }
+                });
+                log('已加载本地配置。');
+            } catch (err) {
+                log(`本地配置解析失败: ${err.message}`);
+            }
+        }
+
+        function saveConfig() {
+            const cfg = {
+                wsUrl: els.wsUrl.value.trim(),
+                clientId: els.clientId.value.trim(),
+                username: els.username.value.trim(),
+                password: els.password.value,
+                sensorTopic: els.sensorTopic.value.trim(),
+                statusTopic: els.statusTopic.value.trim(),
+                alarmTopic: els.alarmTopic.value.trim(),
+                controlTopic: els.controlTopic.value.trim()
+            };
+            localStorage.setItem('nas-console-config', JSON.stringify(cfg));
+            log('配置已保存到浏览器 localStorage。');
+        }
+
+        function publishControl(payload, hint) {
+            if (!state.client || !state.connected) {
+                log('未连接 MQTT，发送已取消。');
+                return;
+            }
+            const topic = els.controlTopic.value.trim();
+            const body = JSON.stringify(payload);
+            state.client.publish(topic, body, { qos: 0, retain: false }, (err) => {
+                if (err) {
+                    log(`发送失败: ${hint} -> ${err.message}`);
+                    return;
+                }
+                log(`发送成功: ${hint} -> ${body}`);
+            });
+        }
+
+        function subscribeAll() {
+            const topics = [els.sensorTopic.value.trim(), els.statusTopic.value.trim(), els.alarmTopic.value.trim()]
+                .filter(Boolean);
+            if (topics.length === 0) {
+                els.subState.textContent = '无可订阅主题';
+                return;
+            }
+
+            let pending = topics.length;
+            topics.forEach((topic) => {
+                state.client.subscribe(topic, { qos: 0 }, (err) => {
+                    pending -= 1;
+                    if (err) {
+                        log(`订阅失败: ${topic} -> ${err.message}`);
+                    } else {
+                        log(`订阅成功: ${topic}`);
+                    }
+                    if (pending === 0) {
+                        els.subState.textContent = '订阅完成';
+                    }
+                });
+            });
+        }
+
+        function updateSensor(data) {
+            const fmt = (value, suffix = '') => (value === undefined || value === null ? '--' : `${value}${suffix}`);
+            els.temperature.textContent = fmt(data.temperatureC, ' C');
+            els.humidity.textContent = fmt(data.humidityPercent, '%');
+            els.light.textContent = fmt(data.lightPercent, '%');
+            els.mq2.textContent = fmt(data.mq2Percent, '%');
+            els.rain.textContent = fmt(data.rainPercent, '%');
+            els.isRaining.textContent = data.isRaining ? '是' : '否';
+            els.smokeLevel.textContent = fmt(data.smokeLevel);
+            els.lastSensorAt.textContent = `传感器消息: ${nowText()}`;
+
+            if (Number.isFinite(Number(data.fanSpeedPercent))) {
+                const v = Math.max(0, Math.min(100, Math.round(Number(data.fanSpeedPercent))));
+                els.fanSpeed.value = String(v);
+                els.fanSpeedLabel.textContent = `${v}%`;
+            }
+
+            if (Number.isFinite(Number(data.curtainAngle))) {
+                const v = Math.max(0, Math.min(180, Math.round(Number(data.curtainAngle))));
+                els.curtainAngle.value = String(v);
+                els.curtainAngleLabel.textContent = `${v}°`;
+            }
+        }
+
+        function updateStatus(data) {
+            if (data.type) {
+                els.statusType.textContent = data.type;
+            }
+            els.statusMessage.value = JSON.stringify(data, null, 2);
+            els.lastStatusAt.textContent = `状态消息: ${nowText()}`;
+        }
+
+        function connect() {
+            if (state.client) {
+                state.client.end(true);
+                state.client = null;
+            }
+
+            const options = {
+                clientId: els.clientId.value.trim() || `nas-console-${Date.now()}`,
+                username: els.username.value.trim() || undefined,
+                password: els.password.value || undefined,
+                reconnectPeriod: state.reconnectDelayMs,
+                connectTimeout: 8000,
+                keepalive: 30,
+                clean: true
+            };
+
+            const wsUrl = els.wsUrl.value.trim();
+            if (!wsUrl) {
+                log('WebSocket URL 为空，无法连接。');
+                return;
+            }
+
+            setConnection('connecting', '连接中');
+            els.subState.textContent = '连接中...';
+            log(`开始连接 ${wsUrl}`);
+            state.client = mqtt.connect(wsUrl, options);
+
+            state.client.on('connect', () => {
+                setConnection('online', '已连接');
+                els.subState.textContent = '连接成功，正在订阅...';
+                log('MQTT 连接成功。');
+                subscribeAll();
+            });
+
+            state.client.on('reconnect', () => {
+                setConnection('connecting', '重连中');
+                els.subState.textContent = '重连中...';
+                log('MQTT 重连中。');
+            });
+
+            state.client.on('error', (err) => {
+                log(`连接错误: ${err.message}`);
+            });
+
+            state.client.on('close', () => {
+                setConnection('offline', '已断开');
+                els.subState.textContent = '连接关闭';
+                log('MQTT 连接关闭。');
+            });
+
+            state.client.on('message', (topic, payloadBuf) => {
+                const payloadText = payloadBuf.toString();
+                log(`收到 ${topic}: ${payloadText}`);
+
+                let data;
+                try {
+                    data = JSON.parse(payloadText);
+                } catch (err) {
+                    log(`JSON 解析失败: ${err.message}`);
+                    return;
+                }
+
+                if (topic === els.sensorTopic.value.trim()) {
+                    updateSensor(data);
+                    return;
+                }
+
+                if (topic === els.statusTopic.value.trim()) {
+                    updateStatus(data);
+                }
+            });
+        }
+
+        function disconnect() {
+            if (!state.client) {
+                log('当前没有活动连接。');
+                return;
+            }
+            state.client.end(true);
+            state.client = null;
+            setConnection('offline', '未连接');
+            els.subState.textContent = '手动断开';
+            log('已手动断开 MQTT。');
+        }
+
+        function sendFanMode(mode) {
+            const valid = ['off', 'low', 'medium', 'high'];
+            if (!valid.includes(mode)) {
+                log(`无效 fan mode: ${mode}`);
+                return;
+            }
+            publishControl({ device: 'fan', mode }, `fan mode=${mode}`);
+        }
+
+        function sendFanSpeed() {
+            const v = Math.max(0, Math.min(100, Math.round(Number(els.fanSpeed.value))));
+            els.fanSpeedLabel.textContent = `${v}%`;
+            publishControl({ device: 'fan', speedPercent: v }, `fan speedPercent=${v}`);
+            state.lastFanSentAt = Date.now();
+        }
+
+        function sendCurtainPreset(preset) {
+            const p = Math.max(0, Math.min(4, Number(preset)));
+            publishControl({ device: 'curtain', preset: p }, `curtain preset=${p}`);
+        }
+
+        function sendCurtainAngle() {
+            const v = Math.max(0, Math.min(180, Math.round(Number(els.curtainAngle.value))));
+            els.curtainAngleLabel.textContent = `${v}°`;
+            publishControl({ device: 'curtain', angle: v }, `curtain angle=${v}`);
+            state.lastCurtainSentAt = Date.now();
+        }
+
+        function sendCustomJson() {
+            const text = els.customJson.value.trim();
+            if (!text) {
+                log('自定义命令为空。');
+                return;
+            }
+            let payload;
+            try {
+                payload = JSON.parse(text);
+            } catch (err) {
+                log(`自定义命令 JSON 非法: ${err.message}`);
+                return;
+            }
+            publishControl(payload, 'custom json');
+        }
+
+        function bindEvents() {
+            els.connectBtn.addEventListener('click', connect);
+            els.disconnectBtn.addEventListener('click', disconnect);
+            els.saveBtn.addEventListener('click', saveConfig);
+            els.sendFanSpeed.addEventListener('click', sendFanSpeed);
+            els.sendCurtainAngle.addEventListener('click', sendCurtainAngle);
+            els.sendCustom.addEventListener('click', sendCustomJson);
+            els.clearLog.addEventListener('click', () => {
+                els.log.textContent = '';
+            });
+
+            document.querySelectorAll('[data-fan-mode]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    sendFanMode(btn.dataset.fanMode);
+                });
+            });
+
+            document.querySelectorAll('[data-curtain-preset]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    sendCurtainPreset(btn.dataset.curtainPreset);
+                });
+            });
+
+            els.fanSpeed.addEventListener('input', () => {
+                const v = Math.max(0, Math.min(100, Math.round(Number(els.fanSpeed.value))));
+                els.fanSpeedLabel.textContent = `${v}%`;
+            });
+
+            els.curtainAngle.addEventListener('input', () => {
+                const v = Math.max(0, Math.min(180, Math.round(Number(els.curtainAngle.value))));
+                els.curtainAngleLabel.textContent = `${v}°`;
+            });
+        }
+
+        loadConfig();
+        bindEvents();
+    </script>
+</body>
+
+</html>
