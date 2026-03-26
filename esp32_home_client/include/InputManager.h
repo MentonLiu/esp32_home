@@ -16,20 +16,21 @@ public:
 
 private:
     bool readButtonPressed(uint8_t pin, bool &stablePressed, bool &lastRawState, unsigned long &lastChangeMs);
-    void updateEncoder();
 
-    bool fanPowerButtonPressed_ = false;
-    bool encoderButtonPressed_ = false;
+    bool button1Pressed_ = false;
+    bool button2Pressed_ = false;
+    bool button3Pressed_ = false;
+    bool button4Pressed_ = false;
 
-    bool fanPowerButtonRawState_ = false;
-    bool encoderButtonRawState_ = false;
+    bool button1RawState_ = false;
+    bool button2RawState_ = false;
+    bool button3RawState_ = false;
+    bool button4RawState_ = false;
 
-    unsigned long fanPowerButtonChangeMs_ = 0;
-    unsigned long encoderButtonChangeMs_ = 0;
-
-    uint8_t encoderState_ = 0;
-    int encoderAccumulator_ = 0;
-    int pendingEncoderSteps_ = 0;
+    unsigned long button1ChangeMs_ = 0;
+    unsigned long button2ChangeMs_ = 0;
+    unsigned long button3ChangeMs_ = 0;
+    unsigned long button4ChangeMs_ = 0;
 };
 
 #endif

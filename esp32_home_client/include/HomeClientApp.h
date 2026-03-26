@@ -24,8 +24,11 @@ private:
     void handleEvent(const InputEvent &event);
     void flushPendingControl();
     ControlResponse sendControlPayload(const String &payload);
-    void toggleFanPower();
+    void advanceCurtainState();
+    void advanceFanState();
     void syncDesiredStateFromServer();
+    int curtainStateIndexFromAngle(uint8_t angle) const;
+    int fanStateIndexFromMode(const String &fanMode, uint8_t fanSpeedPercent) const;
 
     ClientWiFiManager wifiManager_;
     ServerApiClient apiClient_{wifiManager_};
@@ -33,14 +36,12 @@ private:
     OutputManager outputManager_;
 
     ServerStatus serverStatus_;
-    ClientControlMode controlMode_ = ClientControlMode::Curtain;
     unsigned long lastStatusPollMs_ = 0;
     unsigned long lastControlSendMs_ = 0;
     String lastMessage_ = "booting";
 
     int desiredCurtainAngle_ = 0;
-    int desiredFanSpeed_ = 0;
-    bool desiredFanPowerOn_ = false;
+    String desiredFanMode_ = "off";
     bool pendingCurtainCommand_ = false;
     bool pendingFanCommand_ = false;
 };

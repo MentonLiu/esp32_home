@@ -5,6 +5,12 @@
 
 #include "ClientConfig.h"
 
+namespace
+{
+    constexpr uint8_t kCurtainAngles[] = {0, 45, 90, 135, 180};
+    constexpr const char *kFanModes[] = {"off", "low", "medium", "high"};
+} // namespace
+
 void HomeClientApp::begin()
 {
     Serial.begin(115200);
@@ -26,7 +32,6 @@ void HomeClientApp::loop()
 
     outputManager_.render(wifiManager_,
                           serverStatus_,
-                          controlMode_,
                           lastMessage_,
                           apiClient_.isServerReachable());
 }
@@ -71,31 +76,17 @@ void HomeClientApp::handleEvent(const InputEvent &event)
 {
     switch (event.type)
     {
-    case InputEventType::FanPowerButton:
-        toggleFanPower();
+    case InputEventType::Button1:
+        advanceCurtainState();
         break;
-    case InputEventType::EncoderButton:
-        controlMode_ = controlMode_ == ClientControlMode::Curtain ? ClientControlMode::Fan : ClientControlMode::Curtain;
-        lastMessage_ = String("mode_") + controlModeName(controlMode_);
+    case InputEventType::Button2:
+        advanceFanState();
         break;
-    case InputEventType::EncoderAdjust:
-        if (controlMode_ == ClientControlMode::Curtain)
-        {
-            desiredCurtainAngle_ = constrain(desiredCurtainAngle_ + event.value * client_config::kCurtainStepDegrees, 0, 180);
-            pendingCurtainCommand_ = true;
-            lastMessage_ = String("curtain_") + desiredCurtainAngle_;
-        }
-        else
-        {
-            if (!desiredFanPowerOn_)
-            {
-                lastMessage_ = "fan_power_off";
-                break;
-            }
-            desiredFanSpeed_ = constrain(desiredFanSpeed_ + event.value * client_config::kFanStepPercent, 0, 100);
-            pendingFanCommand_ = true;
-            lastMessage_ = String("fan_") + desiredFanSpeed_;
-        }
+    case InputEventType::Button3:
+        lastMessage_ = "button3_reserved";
+        break;
+    case InputEventType::Button4:
+        lastMessage_ = "button4_reserved";
         break;
     case InputEventType::None:
         break;
@@ -123,9 +114,9 @@ void HomeClientApp::flushPendingControl()
     {
         pendingFanCommand_ = false;
         lastControlSendMs_ = millis();
-        const String payload = String("{\"device\":\"fan\",\"speedPercent\":") + desiredFanSpeed_ + "}";
+        const String payload = String("{\"device\":\"fan\",\"mode\":\"") + desiredFanMode_ + "\"}";
         const ControlResponse response = sendControlPayload(payload);
-        lastMessage_ = response.ok ? String("fan_ok_") + desiredFanSpeed_ : String("fan_fail_") + response.message;
+        lastMessage_ = response.ok ? String("fan_ok_") + desiredFanMode_ : String("fan_fail_") + response.message;
     }
 }
 
@@ -135,26 +126,20 @@ ControlResponse HomeClientApp::sendControlPayload(const String &payload)
     return apiClient_.sendCommand(payload);
 }
 
-void HomeClientApp::toggleFanPower()
+void HomeClientApp::advanceCurtainState()
 {
-    desiredFanPowerOn_ = !desiredFanPowerOn_;
-    if (!desiredFanPowerOn_)
-    {
-        desiredFanSpeed_ = 0;
-        pendingFanCommand_ = false;
-    }
+    const int nextIndex = (curtainStateIndexFromAngle(static_cast<uint8_t>(desiredCurtainAngle_)) + 1) % 5;
+    desiredCurtainAngle_ = kCurtainAngles[nextIndex];
+    pendingCurtainCommand_ = true;
+    lastMessage_ = String("curtain_") + desiredCurtainAngle_;
+}
 
-    const String powerState = desiredFanPowerOn_ ? "on" : "off";
-    const String payload = String("{\"device\":\"fan\",\"power\":\"") + powerState + "\"}";
-    const ControlResponse response = sendControlPayload(payload);
-    if (!response.ok)
-    {
-        desiredFanPowerOn_ = serverStatus_.fanPowerOn;
-        lastMessage_ = String("fan_power_fail_") + response.message;
-        return;
-    }
-
-    lastMessage_ = desiredFanPowerOn_ ? "fan_power_on" : "fan_power_off";
+void HomeClientApp::advanceFanState()
+{
+    const int nextIndex = (fanStateIndexFromMode(desiredFanMode_, serverStatus_.fanSpeedPercent) + 1) % 4;
+    desiredFanMode_ = kFanModes[nextIndex];
+    pendingFanCommand_ = true;
+    lastMessage_ = String("fan_") + desiredFanMode_;
 }
 
 void HomeClientApp::syncDesiredStateFromServer()
@@ -166,8 +151,56 @@ void HomeClientApp::syncDesiredStateFromServer()
 
     if (!pendingFanCommand_)
     {
-        desiredFanSpeed_ = serverStatus_.fanSpeedPercent;
+        desiredFanMode_ = serverStatus_.fanMode;
     }
+}
 
-    desiredFanPowerOn_ = serverStatus_.fanPowerOn;
+int HomeClientApp::curtainStateIndexFromAngle(uint8_t angle) const
+{
+    if (angle < 23)
+    {
+        return 0;
+    }
+    if (angle < 68)
+    {
+        return 1;
+    }
+    if (angle < 113)
+    {
+        return 2;
+    }
+    if (angle < 158)
+    {
+        return 3;
+    }
+    return 4;
+}
+
+int HomeClientApp::fanStateIndexFromMode(const String &fanMode, uint8_t fanSpeedPercent) const
+{
+    if (fanMode == "low")
+    {
+        return 1;
+    }
+    if (fanMode == "medium")
+    {
+        return 2;
+    }
+    if (fanMode == "high")
+    {
+        return 3;
+    }
+    if (fanSpeedPercent >= 80)
+    {
+        return 3;
+    }
+    if (fanSpeedPercent >= 50)
+    {
+        return 2;
+    }
+    if (fanSpeedPercent > 0)
+    {
+        return 1;
+    }
+    return 0;
 }

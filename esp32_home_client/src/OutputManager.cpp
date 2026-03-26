@@ -6,7 +6,8 @@
 #include "ClientConfig.h"
 
 OutputManager::OutputManager()
-    : lcd_(client_config::kLcdAddress, client_config::kLcdColumns, client_config::kLcdRows)
+    : lcd_(client_config::kLcdAddress, client_config::kLcdColumns, client_config::kLcdRows),
+      tft_()
 {
 }
 
@@ -26,16 +27,19 @@ void OutputManager::begin()
         lcdReady_ = true;
     }
 
-    // 8Pin 显示器后续将由 LVGL 驱动，当前版本先停用具体绘制实现。
+    if (client_config::kEnableTft)
+    {
+        beginTft();
+    }
 }
 
 void OutputManager::render(const ClientWiFiManager &wifiManager,
                            const ServerStatus &status,
-                           ClientControlMode controlMode,
                            const String &lastMessage,
                            bool serverReachable)
 {
     updateRgb(status.smokeLevel);
+    renderLvgl();
 
     if (millis() - lastRenderMs_ < client_config::kDisplayRefreshIntervalMs)
     {
@@ -43,9 +47,71 @@ void OutputManager::render(const ClientWiFiManager &wifiManager,
     }
     lastRenderMs_ = millis();
 
-    renderLcd(wifiManager, status, controlMode);
+    renderLcd(wifiManager, status);
     (void)lastMessage;
     (void)serverReachable;
+}
+
+void OutputManager::flushDisplay(lv_disp_drv_t *dispDriver, const lv_area_t *area, lv_color_t *colorMap)
+{
+    auto *instance = static_cast<OutputManager *>(dispDriver->user_data);
+    if (instance == nullptr)
+    {
+        lv_disp_flush_ready(dispDriver);
+        return;
+    }
+
+    const uint32_t width = static_cast<uint32_t>(area->x2 - area->x1 + 1);
+    const uint32_t height = static_cast<uint32_t>(area->y2 - area->y1 + 1);
+
+    instance->tft_.startWrite();
+    instance->tft_.setAddrWindow(area->x1, area->y1, width, height);
+    instance->tft_.pushColors(reinterpret_cast<uint16_t *>(colorMap), width * height, true);
+    instance->tft_.endWrite();
+
+    lv_disp_flush_ready(dispDriver);
+}
+
+void OutputManager::beginTft()
+{
+    pinMode(client_config::kTftBacklight, OUTPUT);
+    digitalWrite(client_config::kTftBacklight, HIGH);
+
+    tft_.init();
+    tft_.setRotation(0);
+    tft_.fillScreen(TFT_BLACK);
+
+    lv_init();
+    lv_disp_draw_buf_init(&lvDrawBuf_,
+                          lvDrawBuffer_,
+                          nullptr,
+                          client_config::kTftWidth * 20);
+    lv_disp_drv_init(&lvDispDrv_);
+    lvDispDrv_.hor_res = client_config::kTftWidth;
+    lvDispDrv_.ver_res = client_config::kTftHeight;
+    lvDispDrv_.flush_cb = flushDisplay;
+    lvDispDrv_.draw_buf = &lvDrawBuf_;
+    lvDispDrv_.user_data = this;
+    lv_disp_drv_register(&lvDispDrv_);
+
+    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(lv_scr_act(), LV_OPA_COVER, 0);
+    lastLvTickMs_ = millis();
+    tftReady_ = true;
+}
+
+void OutputManager::renderLvgl()
+{
+    if (!tftReady_)
+    {
+        return;
+    }
+
+    const unsigned long now = millis();
+    const unsigned long elapsed = now - lastLvTickMs_;
+    lastLvTickMs_ = now;
+    lv_tick_inc(elapsed);
+    lv_timer_handler();
 }
 
 void OutputManager::updateRgb(const String &smokeLevel)
@@ -78,8 +144,7 @@ void OutputManager::updateRgb(const String &smokeLevel)
 }
 
 void OutputManager::renderLcd(const ClientWiFiManager &wifiManager,
-                              const ServerStatus &status,
-                              ClientControlMode controlMode)
+                              const ServerStatus &status)
 {
     if (!lcdReady_)
     {
@@ -92,10 +157,8 @@ void OutputManager::renderLcd(const ClientWiFiManager &wifiManager,
         line1 = "wifi waiting";
     }
 
-    const String powerText = status.fanPowerOn ? "ON" : "OFF";
-    String line2 = String(controlMode == ClientControlMode::Curtain ? "C" : "F") +
-                   " P" + powerText +
-                   " " + String(status.fanSpeedPercent) + "%" +
+    String line2 = String("C") + status.curtainAngle +
+                   " F" + status.fanMode +
                    " " + status.smokeLevel;
 
     lcd_.setCursor(0, 0);

@@ -8,50 +8,50 @@
 namespace
 {
     constexpr unsigned long kDebounceMs = 35UL;
-    constexpr int8_t kEncoderTransitionTable[16] = {0, -1, 1, 0,
-                                                    1, 0, 0, -1,
-                                                    -1, 0, 0, 1,
-                                                    0, 1, -1, 0};
 } // namespace
 
 void InputManager::begin()
 {
-    pinMode(client_config::kFanPowerButtonPin, INPUT_PULLUP);
-    pinMode(client_config::kEncoderButtonPin, INPUT_PULLUP);
-    pinMode(client_config::kEncoderPinA, INPUT);
-    pinMode(client_config::kEncoderPinB, INPUT);
-
-    encoderState_ = static_cast<uint8_t>((digitalRead(client_config::kEncoderPinA) << 1) |
-                                         digitalRead(client_config::kEncoderPinB));
+    pinMode(client_config::kButton1Pin, INPUT_PULLUP);
+    pinMode(client_config::kButton2Pin, INPUT_PULLUP);
+    pinMode(client_config::kButton3Pin, INPUT_PULLUP);
+    pinMode(client_config::kButton4Pin, INPUT_PULLUP);
 }
 
 bool InputManager::nextEvent(InputEvent &event)
 {
     event = {};
 
-    if (readButtonPressed(client_config::kFanPowerButtonPin,
-                          fanPowerButtonPressed_,
-                          fanPowerButtonRawState_,
-                          fanPowerButtonChangeMs_))
+    if (readButtonPressed(client_config::kButton1Pin,
+                          button1Pressed_,
+                          button1RawState_,
+                          button1ChangeMs_))
     {
-        event.type = InputEventType::FanPowerButton;
+        event.type = InputEventType::Button1;
         return true;
     }
-    if (readButtonPressed(client_config::kEncoderButtonPin,
-                          encoderButtonPressed_,
-                          encoderButtonRawState_,
-                          encoderButtonChangeMs_))
+    if (readButtonPressed(client_config::kButton2Pin,
+                          button2Pressed_,
+                          button2RawState_,
+                          button2ChangeMs_))
     {
-        event.type = InputEventType::EncoderButton;
+        event.type = InputEventType::Button2;
         return true;
     }
-
-    updateEncoder();
-    if (pendingEncoderSteps_ != 0)
+    if (readButtonPressed(client_config::kButton3Pin,
+                          button3Pressed_,
+                          button3RawState_,
+                          button3ChangeMs_))
     {
-        event.type = InputEventType::EncoderAdjust;
-        event.value = pendingEncoderSteps_;
-        pendingEncoderSteps_ = 0;
+        event.type = InputEventType::Button3;
+        return true;
+    }
+    if (readButtonPressed(client_config::kButton4Pin,
+                          button4Pressed_,
+                          button4RawState_,
+                          button4ChangeMs_))
+    {
+        event.type = InputEventType::Button4;
         return true;
     }
 
@@ -79,28 +79,4 @@ bool InputManager::readButtonPressed(uint8_t pin, bool &stablePressed, bool &las
     }
 
     return false;
-}
-
-void InputManager::updateEncoder()
-{
-    const uint8_t currentState = static_cast<uint8_t>((digitalRead(client_config::kEncoderPinA) << 1) |
-                                                      digitalRead(client_config::kEncoderPinB));
-    if (currentState == encoderState_)
-    {
-        return;
-    }
-
-    encoderState_ = static_cast<uint8_t>(((encoderState_ << 2) | currentState) & 0x0F);
-    encoderAccumulator_ += kEncoderTransitionTable[encoderState_];
-
-    if (encoderAccumulator_ >= 4)
-    {
-        ++pendingEncoderSteps_;
-        encoderAccumulator_ = 0;
-    }
-    else if (encoderAccumulator_ <= -4)
-    {
-        --pendingEncoderSteps_;
-        encoderAccumulator_ = 0;
-    }
 }

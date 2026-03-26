@@ -15,9 +15,10 @@ enum class ClientControlMode : uint8_t
 enum class InputEventType : uint8_t
 {
     None = 0,
-    FanPowerButton,
-    EncoderAdjust,
-    EncoderButton
+    Button1,
+    Button2,
+    Button3,
+    Button4
 };
 
 struct InputEvent
@@ -39,7 +40,6 @@ struct ServerStatus
     String smokeLevel = "green";
     bool flameDetected = false;
     String fanMode = "off";
-    bool fanPowerOn = false;
     uint8_t fanSpeedPercent = 0;
     uint8_t curtainAngle = 0;
     bool error = false;

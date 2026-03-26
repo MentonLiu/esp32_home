@@ -9,8 +9,8 @@
 namespace client_config
 {
     // 已知的目标网络：优先家庭路由器，其次服务端兜底热点。
-    constexpr const char *kPrimaryWifiSsid = "iPadmini";
-    constexpr const char *kPrimaryWifiPassword = "lbl450981";
+    constexpr const char *kPrimaryWifiSsid = "HW-2103";
+    constexpr const char *kPrimaryWifiPassword = "20220715";
     constexpr const char *kServerApSsid = "esp32-server";
     constexpr const char *kServerApPassword = "lbl450981";
 
@@ -27,21 +27,20 @@ namespace client_config
     constexpr unsigned long kServerRediscoveryIntervalMs = 3000UL;
     constexpr unsigned long kHttpTimeoutMs = 1200UL;
 
-    constexpr uint8_t kCurtainStepDegrees = 5;
-    constexpr uint8_t kFanStepPercent = 5;
-
-    // 8Pin 显示器后续会切到 LVGL，目前先屏蔽显示实现。
-    constexpr bool kEnableTft = false;
+    // 8Pin 显示器切到 LVGL 驱动，当前先完成底层初始化与留白显示。
+    constexpr bool kEnableTft = true;
     constexpr bool kEnableLcd1602 = true;
 
-    // TFT SPI 引脚（按常见 ST7789 8Pin 接法预设，可按实际接线调整）。
+    // TFT SPI 引脚（240x320 SPI 屏幕）。
     constexpr uint8_t kTftSclk = 18;
     constexpr uint8_t kTftMosi = 23;
     constexpr int8_t kTftMiso = -1;
-    constexpr uint8_t kTftCs = 5;
-    constexpr uint8_t kTftDc = 17;
-    constexpr uint8_t kTftRst = 16;
-    constexpr uint8_t kTftBacklight = 4;
+    constexpr uint8_t kTftRst = 17;
+    constexpr uint8_t kTftDc = 16;
+    constexpr uint8_t kTftCs = 27;
+    constexpr uint8_t kTftBacklight = 19;
+    constexpr uint16_t kTftWidth = 240;
+    constexpr uint16_t kTftHeight = 320;
 
     // LCD1602 I2C 参数。
     constexpr uint8_t kLcdSda = 21;
@@ -51,16 +50,15 @@ namespace client_config
     constexpr uint8_t kLcdRows = 2;
 
     // RGB 指示灯。
-    constexpr uint8_t kRgbRedPin = 27;
+    constexpr uint8_t kRgbRedPin = 25;
     constexpr uint8_t kRgbGreenPin = 14;
     constexpr uint8_t kRgbBluePin = 15;
 
-    constexpr uint8_t kFanPowerButtonPin = 19;
-
-    // 旋钮编码器 A/B 与按键。
-    constexpr uint8_t kEncoderPinA = 34;
-    constexpr uint8_t kEncoderPinB = 35;
-    constexpr uint8_t kEncoderButtonPin = 13;
+    // 四个独立按钮：按钮 1/2 控制窗帘和风扇状态，按钮 3/4 预留。
+    constexpr uint8_t kButton1Pin = 32;
+    constexpr uint8_t kButton2Pin = 33;
+    constexpr uint8_t kButton3Pin = 26;
+    constexpr uint8_t kButton4Pin = 13;
 
 } // namespace client_config
 

@@ -213,7 +213,6 @@ bool ServerApiClient::parseStatusPayload(const String &payload, const String &ba
     status.smokeLevel = String(doc["smokeLevel"] | doc["sensor"]["smokeLevel"] | "green");
     status.flameDetected = doc["flameDetected"] | doc["sensor"]["flameDetected"] | false;
     status.fanMode = String(doc["fanMode"] | doc["controller"]["fanMode"] | "off");
-    status.fanPowerOn = doc["fanPowerOn"] | doc["controller"]["fanPowerOn"] | false;
     status.fanSpeedPercent = doc["fanSpeedPercent"] | doc["controller"]["fanSpeedPercent"] | 0;
     status.curtainAngle = doc["curtainAngle"] | doc["controller"]["curtainAngle"] | 0;
     status.error = doc["error"] | doc["sensor"]["error"] | false;
