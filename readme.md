@@ -33,12 +33,11 @@
 
 1. 只看 `esp32_home_server`，先跑通服务端网页和 HTTP。
 2. 验证风扇、窗帘、传感器链路稳定性。
-3. 再接入 `esp32_home_client` 作为第二控制入口。
+3. 再接入 `esp32_home_client` 作为第二控制入口，并优先阅读 `doc/client/服务端对接.md`。
 4. 根据需求继续完善客户端交互与自动化策略。
 
 ## 当前易误解点
 
 - 文档中能看到 MQTT，不代表当前依赖 MQTT 才能运行。
 - `esp8266_ir_control/` 已存在，不代表已经可直接烧录联调。
-- 个别历史文档描述与当前实现存在时间差，冲突时以服务端现状和 `doc/shared/` 为准。
-
+- 个别历史文档描述与当前实现存在时间差，冲突时以服务端现状、`esp32_home_server/README.md`、`esp32_home_server/changes.md` 和 `doc/client/服务端对接.md` 为准。
