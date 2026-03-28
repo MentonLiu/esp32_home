@@ -5,6 +5,101 @@
 
 #include "ClientConfig.h"
 
+namespace
+{
+    constexpr uint16_t kBgTop = TFT_BLACK;
+    constexpr uint16_t kBgBottom = 0x18E7;
+    constexpr uint16_t kCardFill = 0x4208;
+    constexpr uint16_t kCardBorder = 0x94B2;
+    constexpr uint16_t kPanelFill = 0x2969;
+    constexpr uint16_t kTextPrimary = TFT_WHITE;
+    constexpr uint16_t kTextMuted = 0xC638;
+    constexpr uint16_t kDotOff = 0x630C;
+
+    const char *monthFromDateToken(const String &token)
+    {
+        if (token == "Jan")
+            return "Jan";
+        if (token == "Feb")
+            return "Feb";
+        if (token == "Mar")
+            return "Mar";
+        if (token == "Apr")
+            return "Apr";
+        if (token == "May")
+            return "May";
+        if (token == "Jun")
+            return "Jun";
+        if (token == "Jul")
+            return "Jul";
+        if (token == "Aug")
+            return "Aug";
+        if (token == "Sep")
+            return "Sep";
+        if (token == "Oct")
+            return "Oct";
+        if (token == "Nov")
+            return "Nov";
+        return "Dec";
+    }
+
+    int monthIndexFromToken(const String &token)
+    {
+        if (token == "Jan")
+            return 1;
+        if (token == "Feb")
+            return 2;
+        if (token == "Mar")
+            return 3;
+        if (token == "Apr")
+            return 4;
+        if (token == "May")
+            return 5;
+        if (token == "Jun")
+            return 6;
+        if (token == "Jul")
+            return 7;
+        if (token == "Aug")
+            return 8;
+        if (token == "Sep")
+            return 9;
+        if (token == "Oct")
+            return 10;
+        if (token == "Nov")
+            return 11;
+        return 12;
+    }
+
+    int weekdayIndex(int year, int month, int day)
+    {
+        if (month < 3)
+        {
+            month += 12;
+            year -= 1;
+        }
+
+        const int k = year % 100;
+        const int j = year / 100;
+        const int h = (day + (13 * (month + 1)) / 5 + k + k / 4 + j / 4 + 5 * j) % 7;
+        return (h + 5) % 7;
+    }
+
+    const char *weekdayName(int index)
+    {
+        static const char *const kWeekdays[] = {"MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"};
+        if (index < 0 || index > 6)
+        {
+            return "DAY";
+        }
+        return kWeekdays[index];
+    }
+
+    String formatTwoDigits(unsigned long value)
+    {
+        return value < 10 ? String("0") + value : String(value);
+    }
+} // namespace
+
 OutputManager::OutputManager()
     : lcd_(client_config::kLcdAddress, client_config::kLcdColumns, client_config::kLcdRows),
       tft_()
@@ -47,9 +142,8 @@ void OutputManager::render(const ClientWiFiManager &wifiManager,
     }
     lastRenderMs_ = millis();
 
+    renderTftHtmlPage(wifiManager, status, lastMessage, serverReachable);
     renderLcd(wifiManager, status);
-    (void)lastMessage;
-    (void)serverReachable;
 }
 
 void OutputManager::flushDisplay(lv_disp_drv_t *dispDriver, const lv_area_t *area, lv_color_t *colorMap)
@@ -112,6 +206,80 @@ void OutputManager::renderLvgl()
     lastLvTickMs_ = now;
     lv_tick_inc(elapsed);
     lv_timer_handler();
+}
+
+void OutputManager::renderTftHtmlPage(const ClientWiFiManager &wifiManager,
+                                      const ServerStatus &status,
+                                      const String &lastMessage,
+                                      bool serverReachable)
+{
+    if (!tftReady_)
+    {
+        return;
+    }
+
+    for (int y = 0; y < client_config::kTftHeight; ++y)
+    {
+        const uint8_t mix = static_cast<uint8_t>((y * 255) / client_config::kTftHeight);
+        tft_.drawFastHLine(0, y, client_config::kTftWidth, tft_.alphaBlend(mix, kBgBottom, kBgTop));
+    }
+
+    tft_.fillRoundRect(10, 10, 220, 300, 15, kCardFill);
+    tft_.drawRoundRect(10, 10, 220, 300, 15, kCardBorder);
+
+    tft_.setTextColor(kTextMuted, kCardFill);
+    tft_.setTextFont(2);
+    tft_.drawString("ESP32-HOME", 25, 27);
+
+    tft_.setTextColor(kTextPrimary, kCardFill);
+    tft_.setTextFont(4);
+    tft_.drawString(buildConnectionBadge(wifiManager), 186, 27);
+
+    tft_.setTextFont(7);
+    tft_.drawString(buildClockText(), 25, 108);
+
+    tft_.setTextFont(2);
+    tft_.setTextColor(kTextMuted, kCardFill);
+    tft_.drawString(buildDateText(), 28, 257);
+    tft_.drawString(buildWeekdayText(), 120, 257);
+
+    const uint16_t wifiDot = wifiManager.isConnected() ? TFT_CYAN : kDotOff;
+    const uint16_t serverDot = serverReachable ? TFT_GREEN : kDotOff;
+    const uint16_t smokeDot = smokeColor565(status.smokeLevel);
+    tft_.fillCircle(207, 205, 8, smokeDot);
+    tft_.fillCircle(207, 234, 8, serverDot);
+    tft_.fillCircle(207, 263, 8, wifiDot);
+
+    tft_.setTextColor(kTextPrimary, kCardFill);
+    tft_.setTextFont(2);
+    tft_.drawCentreString("MADE IN 600", 120, 292, 2);
+
+    tft_.fillRoundRect(24, 58, 130, 28, 8, kPanelFill);
+    tft_.setTextColor(kTextPrimary, kPanelFill);
+    tft_.setTextFont(2);
+    tft_.drawString(status.mode.length() > 0 ? status.mode : "offline", 32, 66);
+
+    tft_.fillRoundRect(24, 186, 166, 50, 10, kPanelFill);
+    tft_.setTextColor(kTextMuted, kPanelFill);
+    tft_.drawString("TEMP / HUM / FAN", 32, 196);
+    tft_.setTextColor(kTextPrimary, kPanelFill);
+    const String liveInfo = String(status.temperatureC, 1) + "C  " +
+                            String(static_cast<int>(status.humidityPercent)) + "%  " +
+                            status.fanMode;
+    tft_.drawString(liveInfo, 32, 214);
+
+    tft_.fillRoundRect(24, 242, 166, 28, 8, kPanelFill);
+    tft_.setTextColor(kTextPrimary, kPanelFill);
+    String footer = lastMessage;
+    if (footer.length() == 0)
+    {
+        footer = status.flameDetected ? "flame_detected" : "screen_ready";
+    }
+    if (footer.length() > 24)
+    {
+        footer = footer.substring(0, 24);
+    }
+    tft_.drawString(footer, 32, 250);
 }
 
 void OutputManager::updateRgb(const String &smokeLevel)
@@ -179,4 +347,61 @@ String OutputManager::fit16(const String &text) const
         out += ' ';
     }
     return out;
+}
+
+String OutputManager::buildClockText() const
+{
+    const unsigned long totalMinutes = millis() / 60000UL;
+    const unsigned long hours = (12UL + (totalMinutes / 60UL)) % 24UL;
+    const unsigned long minutes = totalMinutes % 60UL;
+    return formatTwoDigits(hours) + ":" + formatTwoDigits(minutes);
+}
+
+String OutputManager::buildDateText() const
+{
+    const String buildDate = __DATE__;
+    const String monthToken = buildDate.substring(0, 3);
+    const String dayToken = buildDate.substring(4, 6);
+    const String day = String(dayToken.toInt());
+    return String(monthFromDateToken(monthToken)) + " " + day;
+}
+
+String OutputManager::buildWeekdayText() const
+{
+    const String buildDate = __DATE__;
+    const String monthToken = buildDate.substring(0, 3);
+    const int month = monthIndexFromToken(monthToken);
+    const int day = buildDate.substring(4, 6).toInt();
+    const int year = buildDate.substring(7).toInt();
+    return String(weekdayName(weekdayIndex(year, month, day)));
+}
+
+String OutputManager::buildConnectionBadge(const ClientWiFiManager &wifiManager) const
+{
+    if (!wifiManager.isConnected())
+    {
+        return "OFF";
+    }
+    if (wifiManager.isConnectedToServerAp())
+    {
+        return "AP";
+    }
+    return "STA";
+}
+
+uint16_t OutputManager::smokeColor565(const String &smokeLevel) const
+{
+    if (smokeLevel == "green")
+    {
+        return TFT_GREEN;
+    }
+    if (smokeLevel == "blue")
+    {
+        return TFT_CYAN;
+    }
+    if (smokeLevel == "yellow")
+    {
+        return TFT_ORANGE;
+    }
+    return TFT_RED;
 }

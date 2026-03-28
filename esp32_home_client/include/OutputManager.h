@@ -29,10 +29,19 @@ private:
     static void flushDisplay(lv_disp_drv_t *dispDriver, const lv_area_t *area, lv_color_t *colorMap);
     void beginTft();
     void renderLvgl();
+    void renderTftHtmlPage(const ClientWiFiManager &wifiManager,
+                           const ServerStatus &status,
+                           const String &lastMessage,
+                           bool serverReachable);
     void updateRgb(const String &smokeLevel);
     void renderLcd(const ClientWiFiManager &wifiManager,
                    const ServerStatus &status);
     String fit16(const String &text) const;
+    String buildClockText() const;
+    String buildDateText() const;
+    String buildWeekdayText() const;
+    String buildConnectionBadge(const ClientWiFiManager &wifiManager) const;
+    uint16_t smokeColor565(const String &smokeLevel) const;
 
     LiquidCrystal_I2C lcd_;
     TFT_eSPI tft_;
