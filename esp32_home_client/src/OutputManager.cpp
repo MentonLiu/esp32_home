@@ -134,7 +134,6 @@ void OutputManager::render(const ClientWiFiManager &wifiManager,
                            bool serverReachable)
 {
     updateRgb(status.smokeLevel);
-    renderLvgl();
 
     if (millis() - lastRenderMs_ < client_config::kDisplayRefreshIntervalMs)
     {
@@ -146,26 +145,6 @@ void OutputManager::render(const ClientWiFiManager &wifiManager,
     renderLcd(wifiManager, status);
 }
 
-void OutputManager::flushDisplay(lv_disp_drv_t *dispDriver, const lv_area_t *area, lv_color_t *colorMap)
-{
-    auto *instance = static_cast<OutputManager *>(dispDriver->user_data);
-    if (instance == nullptr)
-    {
-        lv_disp_flush_ready(dispDriver);
-        return;
-    }
-
-    const uint32_t width = static_cast<uint32_t>(area->x2 - area->x1 + 1);
-    const uint32_t height = static_cast<uint32_t>(area->y2 - area->y1 + 1);
-
-    instance->tft_.startWrite();
-    instance->tft_.setAddrWindow(area->x1, area->y1, width, height);
-    instance->tft_.pushColors(reinterpret_cast<uint16_t *>(colorMap), width * height, true);
-    instance->tft_.endWrite();
-
-    lv_disp_flush_ready(dispDriver);
-}
-
 void OutputManager::beginTft()
 {
     pinMode(client_config::kTftBacklight, OUTPUT);
@@ -174,50 +153,12 @@ void OutputManager::beginTft()
     tft_.init();
     tft_.setRotation(0);
     tft_.fillScreen(TFT_BLACK);
-
-    lv_init();
-    lv_disp_draw_buf_init(&lvDrawBuf_,
-                          lvDrawBuffer_,
-                          nullptr,
-                          client_config::kTftWidth * 20);
-    lv_disp_drv_init(&lvDispDrv_);
-    lvDispDrv_.hor_res = client_config::kTftWidth;
-    lvDispDrv_.ver_res = client_config::kTftHeight;
-    lvDispDrv_.flush_cb = flushDisplay;
-    lvDispDrv_.draw_buf = &lvDrawBuf_;
-    lvDispDrv_.user_data = this;
-    lv_disp_drv_register(&lvDispDrv_);
-
-    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), 0);
-    lv_obj_set_style_bg_opa(lv_scr_act(), LV_OPA_COVER, 0);
-    lastLvTickMs_ = millis();
+    tftStaticPainted_ = false;
     tftReady_ = true;
 }
 
-void OutputManager::renderLvgl()
+void OutputManager::drawTftStaticLayout()
 {
-    if (!tftReady_)
-    {
-        return;
-    }
-
-    const unsigned long now = millis();
-    const unsigned long elapsed = now - lastLvTickMs_;
-    lastLvTickMs_ = now;
-    lv_tick_inc(elapsed);
-    lv_timer_handler();
-}
-
-void OutputManager::renderTftHtmlPage(const ClientWiFiManager &wifiManager,
-                                      const ServerStatus &status,
-                                      const String &lastMessage,
-                                      bool serverReachable)
-{
-    if (!tftReady_)
-    {
-        return;
-    }
-
     for (int y = 0; y < client_config::kTftHeight; ++y)
     {
         const uint8_t mix = static_cast<uint8_t>((y * 255) / client_config::kTftHeight);
@@ -232,12 +173,43 @@ void OutputManager::renderTftHtmlPage(const ClientWiFiManager &wifiManager,
     tft_.drawString("ESP32-HOME", 25, 27);
 
     tft_.setTextColor(kTextPrimary, kCardFill);
+    tft_.setTextFont(2);
+    tft_.drawCentreString("MADE IN 600", 120, 292, 2);
+
+    tft_.fillRoundRect(24, 58, 130, 28, 8, kPanelFill);
+    tft_.fillRoundRect(24, 186, 166, 50, 10, kPanelFill);
+    tft_.setTextColor(kTextMuted, kPanelFill);
+    tft_.setTextFont(2);
+    tft_.drawString("TEMP / HUM / FAN", 32, 196);
+    tft_.fillRoundRect(24, 242, 166, 28, 8, kPanelFill);
+}
+
+void OutputManager::renderTftHtmlPage(const ClientWiFiManager &wifiManager,
+                                      const ServerStatus &status,
+                                      const String &lastMessage,
+                                      bool serverReachable)
+{
+    if (!tftReady_)
+    {
+        return;
+    }
+
+    if (!tftStaticPainted_)
+    {
+        drawTftStaticLayout();
+        tftStaticPainted_ = true;
+    }
+
+    tft_.fillRect(174, 23, 48, 22, kCardFill);
+    tft_.setTextColor(kTextPrimary, kCardFill);
     tft_.setTextFont(4);
     tft_.drawString(buildConnectionBadge(wifiManager), 186, 27);
 
+    tft_.fillRect(25, 104, 140, 54, kCardFill);
     tft_.setTextFont(7);
     tft_.drawString(buildClockText(), 25, 108);
 
+    tft_.fillRect(24, 256, 170, 18, kCardFill);
     tft_.setTextFont(2);
     tft_.setTextColor(kTextMuted, kCardFill);
     tft_.drawString(buildDateText(), 28, 257);
@@ -250,10 +222,6 @@ void OutputManager::renderTftHtmlPage(const ClientWiFiManager &wifiManager,
     tft_.fillCircle(207, 234, 8, serverDot);
     tft_.fillCircle(207, 263, 8, wifiDot);
 
-    tft_.setTextColor(kTextPrimary, kCardFill);
-    tft_.setTextFont(2);
-    tft_.drawCentreString("MADE IN 600", 120, 292, 2);
-
     tft_.fillRoundRect(24, 58, 130, 28, 8, kPanelFill);
     tft_.setTextColor(kTextPrimary, kPanelFill);
     tft_.setTextFont(2);
@@ -263,22 +231,12 @@ void OutputManager::renderTftHtmlPage(const ClientWiFiManager &wifiManager,
     tft_.setTextColor(kTextMuted, kPanelFill);
     tft_.drawString("TEMP / HUM / FAN", 32, 196);
     tft_.setTextColor(kTextPrimary, kPanelFill);
-    const String liveInfo = String(status.temperatureC, 1) + "C  " +
-                            String(static_cast<int>(status.humidityPercent)) + "%  " +
-                            status.fanMode;
+    const String liveInfo = buildLiveInfo(status);
     tft_.drawString(liveInfo, 32, 214);
 
     tft_.fillRoundRect(24, 242, 166, 28, 8, kPanelFill);
     tft_.setTextColor(kTextPrimary, kPanelFill);
-    String footer = lastMessage;
-    if (footer.length() == 0)
-    {
-        footer = status.flameDetected ? "flame_detected" : "screen_ready";
-    }
-    if (footer.length() > 24)
-    {
-        footer = footer.substring(0, 24);
-    }
+    const String footer = buildFooterText(status, lastMessage);
     tft_.drawString(footer, 32, 250);
 }
 
@@ -387,6 +345,28 @@ String OutputManager::buildConnectionBadge(const ClientWiFiManager &wifiManager)
         return "AP";
     }
     return "STA";
+}
+
+String OutputManager::buildLiveInfo(const ServerStatus &status) const
+{
+    return String(status.temperatureC, 1) + "C  " +
+           String(static_cast<int>(status.humidityPercent)) + "%  " +
+           status.fanMode;
+}
+
+String OutputManager::buildFooterText(const ServerStatus &status,
+                                      const String &lastMessage) const
+{
+    String footer = lastMessage;
+    if (footer.length() == 0)
+    {
+        footer = status.flameDetected ? "flame_detected" : "screen_ready";
+    }
+    if (footer.length() > 24)
+    {
+        footer = footer.substring(0, 24);
+    }
+    return footer;
 }
 
 uint16_t OutputManager::smokeColor565(const String &smokeLevel) const

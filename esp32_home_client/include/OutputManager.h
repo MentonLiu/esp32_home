@@ -8,7 +8,6 @@
 #include <LiquidCrystal_I2C.h>
 #include <TFT_eSPI.h>
 #include <Wire.h>
-#include <lvgl.h>
 
 #include "ClientConfig.h"
 #include "ClientContracts.h"
@@ -26,9 +25,8 @@ public:
                 bool serverReachable);
 
 private:
-    static void flushDisplay(lv_disp_drv_t *dispDriver, const lv_area_t *area, lv_color_t *colorMap);
     void beginTft();
-    void renderLvgl();
+    void drawTftStaticLayout();
     void renderTftHtmlPage(const ClientWiFiManager &wifiManager,
                            const ServerStatus &status,
                            const String &lastMessage,
@@ -41,17 +39,17 @@ private:
     String buildDateText() const;
     String buildWeekdayText() const;
     String buildConnectionBadge(const ClientWiFiManager &wifiManager) const;
+    String buildLiveInfo(const ServerStatus &status) const;
+    String buildFooterText(const ServerStatus &status,
+                           const String &lastMessage) const;
     uint16_t smokeColor565(const String &smokeLevel) const;
 
     LiquidCrystal_I2C lcd_;
     TFT_eSPI tft_;
-    lv_disp_draw_buf_t lvDrawBuf_{};
-    lv_disp_drv_t lvDispDrv_{};
-    lv_color_t lvDrawBuffer_[client_config::kTftWidth * 20];
     bool lcdReady_ = false;
     bool tftReady_ = false;
+    bool tftStaticPainted_ = false;
     unsigned long lastRenderMs_ = 0;
-    unsigned long lastLvTickMs_ = 0;
 };
 
 #endif
