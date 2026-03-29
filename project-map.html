@@ -223,7 +223,7 @@
                     <p><code>esp32_home_server/</code> 负责传感器采样、自动化、网页 API，以及风扇/窗帘/蜂鸣器执行控制。</p>
                 </article>
                 <article class="card"><span class="tag client">客户端</span>
-                    <p><code>esp32_home_client/</code> 负责按键、旋钮、RGB、LCD1602，以及通过 HTTP 控制服务端。它是控制入口，不是主控中心。</p>
+                    <p><code>esp32_home_client/</code> 负责四按键输入、RGB、LCD1602、TFT 展示，并通过 HTTP 控制服务端。它是控制入口，不是主控中心。</p>
                 </article>
                 <article class="card"><span class="tag shared">文档</span>
                     <p><code>doc/</code> 是统一文档中心。协议、需求和结构图都优先写在这里，不再在子项目里散落副本。</p>
@@ -244,7 +244,7 @@
                     <div class="cols">
                         <div class="node"><strong>esp32_home_server/</strong><br />主控服务端：传感器采样、自动化引擎、本地 Web API、执行器控制。
                         </div>
-                        <div class="node"><strong>esp32_home_client/</strong><br />控制面板端：按键/旋钮输入、RGB/LCD 输出、通过 HTTP
+                        <div class="node"><strong>esp32_home_client/</strong><br />控制面板端：四按键输入、RGB/LCD/TFT 输出、通过 HTTP
                             调服务端控制接口。</div>
                         <div class="node"><strong>doc/</strong><br />项目文档中心：需求、流程、架构、协议说明统一沉淀。</div>
                     </div>
@@ -262,12 +262,12 @@
         <section class="section">
             <h2>当前约定</h2>
             <div class="timeline">
-                <div class="step">服务端联网 Wi-Fi 已固定为 <code>iPadmini</code> / <code>lbl450981</code>。离线时仍回退到热点
+                <div class="step">服务端与客户端优先连接家庭 Wi-Fi <code>HW-2103</code> / <code>20220715</code>。不可用时回退到热点
                     <code>esp32-server</code> / <code>lbl450981</code>。
                 </div>
                 <div class="step">客户端主链路只走 HTTP，不依赖 MQTT。MQTT 当前只保留占位代码与说明，后续单独设计再恢复。</div>
                 <div class="step">红外控制功能已从当前仓库下线，后续若恢复将以独立需求重新设计实现。</div>
-                <div class="step">8pin TFT 以后会改成 LVGL 界面，但目前界面尚未设计，因此显示逻辑先屏蔽，不让未定 UI 反向污染协议和固件结构。</div>
+                <div class="step">客户端 8pin TFT 当前已启用基础信息页（非 LVGL），用于状态可视化与联网状态提示；LVGL 作为后续演进方向保留。</div>
                 <div class="step">最近服务端重点在“可用性”而不是“加新功能”，已经处理网页控制延迟、蜂鸣器阻塞、舵机联动和主循环卡顿等问题。</div>
             </div>
         </section>
