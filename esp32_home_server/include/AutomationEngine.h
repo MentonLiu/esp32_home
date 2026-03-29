@@ -7,13 +7,13 @@
 // 3) 烟雾联动：烟雾达到阈值自动开高档风扇，并在高危区间周期性蜂鸣提醒。
 // 4) 雨滴联动窗帘：检测到下雨后优先关闭窗帘，雨停稳定后全开并释放联动锁。
 // 5) 光照联动窗帘：白天按亮度自动防眩/补光，带手动优先与动作冷却机制。
-// 6) 时间源管理：优先使用 NTP，次选 RTC，失败时回退到编译时刻+运行时长。
+// 6) 时间源管理：优先使用 NTP，失败时回退到内置 Unix 基准+运行时长。
 
 #ifndef AUTOMATION_ENGINE_H
 #define AUTOMATION_ENGINE_H
 
 #include <Arduino.h>
-#include <RTClib.h>
+#include <time.h>
 
 #include "ConnectivityManager.h"
 #include "ControllerCommandProcessor.h"
@@ -36,12 +36,10 @@ public:
 private:
     // 联网后配置 NTP 时间服务。
     void ensureTimeSource();
-    // 在 NTP 可用时将时间同步到 RTC，提升离线可用性。
-    void syncRtcFromNtp();
-    // 统一当前时间来源：NTP -> RTC -> 编译时回退时钟。
-    DateTime currentTime();
+    // 统一当前时间来源：NTP -> Unix 回退时钟。
+    time_t currentTime();
     // 每日定时窗帘规则。
-    void handleCurtainSchedule(const DateTime &now);
+    void handleCurtainSchedule(time_t nowUnix);
     // 温度联动风扇规则。
     void handleTemperatureAutomation(const StandardSensorData &sensorData);
     // 烟雾浓度联动规则。
@@ -49,7 +47,7 @@ private:
     // 雨滴联动窗帘规则。
     void handleRainAutomation(const StandardSensorData &sensorData);
     // 光照联动窗帘规则。
-    void handleLightAutomation(const StandardSensorData &sensorData, const DateTime &now);
+    void handleLightAutomation(const StandardSensorData &sensorData, time_t nowUnix);
     // 统一状态/告警消息上报入口。
     void publishStatus(const char *topic, const String &type, const String &message) const;
 
@@ -57,16 +55,10 @@ private:
     ControllerCommandProcessor &commandProcessor_;
     StatusReporter statusReporter_;
 
-    // DS3231 RTC 实例（I2C）。
-    RTC_DS3231 rtc_;
-    // RTC 硬件是否可用。
-    bool rtcAvailable_ = false;
     // 是否已配置 NTP。
     bool ntpConfigured_ = false;
-    // 是否已完成 NTP -> RTC 一次同步。
-    bool rtcSyncedFromNtp_ = false;
-    // 回退时间基准：当 NTP 与 RTC 都不可用时使用。
-    DateTime fallbackBaseTime_;
+    // 回退时间基准（Unix 时间秒）。
+    time_t fallbackBaseUnix_ = 1704067200;
     unsigned long fallbackBaseMillis_ = 0;
 
     // 限流与去重状态。

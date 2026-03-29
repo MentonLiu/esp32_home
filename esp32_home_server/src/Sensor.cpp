@@ -8,6 +8,17 @@
 
 DhtSensor::DhtSensor(uint8_t pin, uint8_t sensorType) : dht_(pin, sensorType) {}
 
+namespace
+{
+// ESP32-S3 上部分 DHT 实现会在关键时序阶段关闭中断，偶发触发 Interrupt WDT。
+// 先默认关闭 DHT 实读以保证系统稳定；硬件与驱动确认后可再恢复。
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+    constexpr bool kEnableDhtReadOnEsp32S3 = false;
+#else
+    constexpr bool kEnableDhtReadOnEsp32S3 = true;
+#endif
+} // namespace
+
 void DhtSensor::begin()
 {
     // DHT 库内部会完成引脚与时序初始化。
@@ -17,6 +28,20 @@ void DhtSensor::begin()
 
 bool DhtSensor::read(float &temperatureC, float &humidityPercent, String &error)
 {
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+    if (!kEnableDhtReadOnEsp32S3)
+    {
+        error = "dht_disabled_on_esp32s3";
+        static unsigned long lastWarnTime = 0;
+        if (millis() - lastWarnTime > 10000)
+        {
+            LOG_WARN("DHT", "ESP32-S3 已临时禁用 DHT 实读以规避 WDT，温湿度保持上次值");
+            lastWarnTime = millis();
+        }
+        return false;
+    }
+#endif
+
     // 温湿度传感器可能出现瞬时读取失败，是否保留旧值由上层决定。
     temperatureC = dht_.readTemperature();
     humidityPercent = dht_.readHumidity();

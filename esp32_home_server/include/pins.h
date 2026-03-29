@@ -29,12 +29,6 @@ namespace pins
     // 蜂鸣器输出脚。
     static constexpr uint8_t BUZZER = 12;
 
-    // 外部实时时钟总线引脚。
-    // I2C SDA。
-    static constexpr uint8_t RTC_I2C_SDA = 8;
-    // I2C SCL。
-    static constexpr uint8_t RTC_I2C_SCL = 9;
-
 } // 命名空间结束
 
 #endif

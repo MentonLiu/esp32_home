@@ -30,7 +30,6 @@
   - PubSubClient（当前仅保留占位接入能力）
   - DHT sensor library
   - ESP32Servo
-  - RTClib
 
 ## 3. 目录说明
 
@@ -218,8 +217,7 @@
 ### 8.5 时间源优先级
 
 1. NTP（联网后）
-2. DS3231 RTC（若可用且时间有效）
-3. 编译时刻 + 开机运行时长（回退方案）
+2. 内置 Unix 基准 + 开机运行时长（回退方案）
 
 ## 9. 传感器与执行器
 
@@ -268,8 +266,6 @@
 - 窗帘舵机 A：GPIO16
 - 窗帘舵机 B：GPIO17
 - 蜂鸣器：GPIO12
-- RTC I2C SDA：GPIO8
-- RTC I2C SCL：GPIO9
 
 ## 11. 页面说明
 

@@ -3,11 +3,9 @@
 
 #include "AutomationEngine.h"
 
-#include <Wire.h>
 #include <time.h>
 
 #include "MqttUpstream.h"
-#include "pins.h"
 
 namespace
 {
@@ -28,14 +26,20 @@ namespace
     constexpr unsigned long kRainCurtainCooldownMs = 60000UL;
 
     // 将日期压缩为“天序号”，用于每日只触发一次的去重逻辑。
-    uint32_t dayStampFromDateTime(const DateTime &timePoint)
+    uint32_t dayStampFromUnix(time_t unixSeconds)
     {
-        return static_cast<uint32_t>(timePoint.unixtime() / 86400UL);
+        if (unixSeconds <= 0)
+        {
+            return 0;
+        }
+        return static_cast<uint32_t>(static_cast<unsigned long>(unixSeconds) / 86400UL);
     }
 
-    bool isDaytimeWindow(const DateTime &timePoint)
+    bool isDaytimeWindow(time_t unixSeconds)
     {
-        const uint8_t hour = timePoint.hour();
+        struct tm localTime;
+        localtime_r(&unixSeconds, &localTime);
+        const uint8_t hour = static_cast<uint8_t>(localTime.tm_hour);
         return hour >= 8 && hour < 18;
     }
 } // namespace
@@ -45,35 +49,29 @@ AutomationEngine::AutomationEngine(ConnectivityManager &net,
                                    StatusReporter statusReporter)
     : net_(net),
       commandProcessor_(commandProcessor),
-      statusReporter_(statusReporter),
-      fallbackBaseTime_(DateTime(F(__DATE__), F(__TIME__)))
+      statusReporter_(statusReporter)
 {
 }
 
 void AutomationEngine::begin()
 {
-    // 初始化 RTC 所在 I2C 总线。
-    Wire.begin(pins::RTC_I2C_SDA, pins::RTC_I2C_SCL);
-    rtcAvailable_ = rtc_.begin();
-    // 记录回退时钟基准点。
+    // 记录回退时钟基准点（无 NTP 时使用）。
     fallbackBaseMillis_ = millis();
     ensureTimeSource();
-    syncRtcFromNtp();
 }
 
 void AutomationEngine::loop(const StandardSensorData &sensorData)
 {
     // 每轮循环都尝试维护时间源状态。
     ensureTimeSource();
-    syncRtcFromNtp();
 
     // 定时任务按 1Hz 执行即可，避免无意义高频计算。
     if (millis() - lastScheduleCheckMs_ >= 1000)
     {
         lastScheduleCheckMs_ = millis();
-        const DateTime now = currentTime();
-        handleCurtainSchedule(now);
-        handleLightAutomation(sensorData, now);
+        const time_t nowUnix = currentTime();
+        handleCurtainSchedule(nowUnix);
+        handleLightAutomation(sensorData, nowUnix);
     }
 
     // 传感联动可高频检查。
@@ -92,35 +90,7 @@ void AutomationEngine::ensureTimeSource()
     }
 }
 
-void AutomationEngine::syncRtcFromNtp()
-{
-    // 只在“RTC 可用 + NTP 已配置 + 尚未同步”时执行一次。
-    if (!rtcAvailable_ || rtcSyncedFromNtp_ || !ntpConfigured_)
-    {
-        return;
-    }
-
-    const time_t now = time(nullptr);
-    // NTP 尚未获取到有效时间时，time 可能过小。
-    if (now <= 100000)
-    {
-        return;
-    }
-
-    struct tm localTime;
-    localtime_r(&now, &localTime);
-    rtc_.adjust(DateTime(localTime.tm_year + 1900,
-                         localTime.tm_mon + 1,
-                         localTime.tm_mday,
-                         localTime.tm_hour,
-                         localTime.tm_min,
-                         localTime.tm_sec));
-    rtcSyncedFromNtp_ = true;
-    // 记录同步事件，便于排查离线时间异常。
-    publishStatus(mqtt_upstream::statusTopic(), "rtc", "rtc_synced_from_ntp");
-}
-
-DateTime AutomationEngine::currentTime()
+time_t AutomationEngine::currentTime()
 {
     // 优先使用 NTP（在线最准确）。
     if (ntpConfigured_)
@@ -128,37 +98,22 @@ DateTime AutomationEngine::currentTime()
         const time_t now = time(nullptr);
         if (now > 100000)
         {
-            struct tm localTime;
-            localtime_r(&now, &localTime);
-            return DateTime(localTime.tm_year + 1900,
-                            localTime.tm_mon + 1,
-                            localTime.tm_mday,
-                            localTime.tm_hour,
-                            localTime.tm_min,
-                            localTime.tm_sec);
+            return now;
         }
     }
 
-    if (rtcAvailable_)
-    {
-        const DateTime rtcNow = rtc_.now();
-        // 对 RTC 年份做最小有效值保护，避免未校时数据污染自动化。
-        if (rtcNow.year() >= 2024)
-        {
-            return rtcNow;
-        }
-    }
-
-    // 最后回退到“编译时刻 + 开机已运行时长”。
-    return fallbackBaseTime_ + TimeSpan((millis() - fallbackBaseMillis_) / 1000UL);
+    // 回退到“内置 Unix 基准 + 开机运行时长”。
+    return fallbackBaseUnix_ + static_cast<time_t>((millis() - fallbackBaseMillis_) / 1000UL);
 }
 
-void AutomationEngine::handleCurtainSchedule(const DateTime &now)
+void AutomationEngine::handleCurtainSchedule(time_t nowUnix)
 {
-    const uint32_t dayStamp = dayStampFromDateTime(now);
+    const uint32_t dayStamp = dayStampFromUnix(nowUnix);
+    struct tm localTime;
+    localtime_r(&nowUnix, &localTime);
 
     // 每日 07:00 自动开窗帘，且同一天只触发一次。
-    if (!rainLockActive_ && now.hour() == 7 && now.minute() == 0 && lastOpenDayStamp_ != dayStamp)
+    if (!rainLockActive_ && localTime.tm_hour == 7 && localTime.tm_min == 0 && lastOpenDayStamp_ != dayStamp)
     {
         commandProcessor_.setCurtainPreset(4);
         lastOpenDayStamp_ = dayStamp;
@@ -166,7 +121,7 @@ void AutomationEngine::handleCurtainSchedule(const DateTime &now)
     }
 
     // 每日 22:00 自动关窗帘，且同一天只触发一次。
-    if (now.hour() == 22 && now.minute() == 0 && lastCloseDayStamp_ != dayStamp)
+    if (localTime.tm_hour == 22 && localTime.tm_min == 0 && lastCloseDayStamp_ != dayStamp)
     {
         commandProcessor_.setCurtainPreset(0);
         lastCloseDayStamp_ = dayStamp;
@@ -265,7 +220,7 @@ void AutomationEngine::handleRainAutomation(const StandardSensorData &sensorData
     }
 }
 
-void AutomationEngine::handleLightAutomation(const StandardSensorData &sensorData, const DateTime &now)
+void AutomationEngine::handleLightAutomation(const StandardSensorData &sensorData, time_t nowUnix)
 {
     // 雨滴锁定期间不允许光照联动重新开窗帘。
     if (rainLockActive_)
@@ -274,7 +229,7 @@ void AutomationEngine::handleLightAutomation(const StandardSensorData &sensorDat
     }
 
     // 仅白天启用光照联动，避免夜间误动作。
-    if (!isDaytimeWindow(now))
+    if (!isDaytimeWindow(nowUnix))
     {
         return;
     }

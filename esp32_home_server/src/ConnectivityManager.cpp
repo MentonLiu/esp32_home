@@ -51,8 +51,6 @@ void ConnectivityManager::begin()
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true);
     mqttClient_.setCallback(ConnectivityManager::handleMqttDispatch);
-    // 缩短套接字超时，避免云端不可达时长时间阻塞主循环。
-    mqttClient_.setSocketTimeout(1);
 
     // 不自动开启 AP；仅尝试连接家庭路由器。
     mode_ = OperatingMode::LocalAP;
@@ -117,8 +115,8 @@ void ConnectivityManager::setMqttHandler(MqttHandler handler)
 
 bool ConnectivityManager::mqttPublish(const char *topic, const String &payload)
 {
-    // 发布路径不触发连接建立，避免业务发送阻塞网页响应。
-    if (!mqttClient_.connected())
+    // 发布前先确保连接可用。
+    if (!ensureMqttConnected())
     {
         return false;
     }
@@ -307,43 +305,23 @@ bool ConnectivityManager::ensureMqttConnected()
         return true;
     }
 
-    const unsigned long now = millis();
-
     // 限制重连频率，避免紧密重试循环。
-    if (now - lastMqttRetryMs_ < 15000UL)
+    if (millis() - lastMqttRetryMs_ < 5000)
     {
         return false;
     }
-    lastMqttRetryMs_ = now;
+    lastMqttRetryMs_ = millis();
 
-    // 域名场景使用 DNS 缓存并对失败重试做退避，降低阻塞与日志噪音。
+    // 域名场景先做一次显式 DNS 解析，失败则本轮放弃 MQTT，不影响本地网页可用性。
     if (!isIpv4Literal(mqttHost_))
     {
-        constexpr unsigned long kDnsRetryBackoffMs = 30000UL;
-        constexpr unsigned long kDnsCacheTtlMs = 300000UL;
-
-        const bool cacheExpired = !hasCachedMqttIp_ || (now - lastDnsResolveSuccessMs_ >= kDnsCacheTtlMs);
-        if (cacheExpired)
+        IPAddress resolved;
+        if (WiFi.hostByName(mqttHost_, resolved) != 1)
         {
-            if (now - lastDnsResolveAttemptMs_ < kDnsRetryBackoffMs)
-            {
-                return false;
-            }
-            lastDnsResolveAttemptMs_ = now;
-
-            IPAddress resolved;
-            if (WiFi.hostByName(mqttHost_, resolved) != 1)
-            {
-                LOG_WARN("MQTT", "DNS 解析失败: %s", mqttHost_);
-                hasCachedMqttIp_ = false;
-                return false;
-            }
-
-            cachedMqttIp_ = resolved;
-            hasCachedMqttIp_ = true;
-            lastDnsResolveSuccessMs_ = now;
+            LOG_WARN("MQTT", "DNS 解析失败: %s", mqttHost_);
+            return false;
         }
-        mqttClient_.setServer(cachedMqttIp_, mqttPort_);
+        mqttClient_.setServer(resolved, mqttPort_);
     }
     else
     {
