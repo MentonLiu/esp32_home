@@ -14,6 +14,7 @@ namespace
     constexpr const char *kStationPassword = "20220715";
     constexpr const char *kApSsid = "esp32-server";
     constexpr const char *kApPassword = "lbl450981";
+    constexpr const char *kDhtModel = "DHT11";
 } // namespace
 
 CentralProcessor::CentralProcessor()
@@ -49,12 +50,14 @@ void CentralProcessor::begin()
     LOG_INFO("INIT", "初始化传感器...");
     sensorDataProcessor_.begin();
     LOG_INFO("INIT", "传感器初始化完成");
+    LOG_INFO("INIT", "DHT 配置: model=%s pin=%u read_mode=live_with_cache", kDhtModel, pins::DHT_DATA);
 
     // 2) 初始化执行器。
     LOG_INFO("INIT", "初始化执行器...");
     commandProcessor_.begin();
     LOG_INFO("INIT", "执行器初始化完成");
-    LOG_INFO("INIT", "电机 LEDC 通道: 5, 舵机: auto, 蜂鸣器 LEDC 通道: 6");
+    LOG_INFO("INIT", "风扇 PWM: pin=%u channel=%u freq=%luHz", fan_.pin(), fan_.pwmChannel(), fan_.pwmFrequencyHz());
+    LOG_INFO("INIT", "执行器通道: 风扇=%u, 舵机=auto, 蜂鸣器 LEDC 通道=6", fan_.pwmChannel());
 
     // 3) 启动网络与网页服务。
     LOG_INFO("INIT", "初始化网络...");

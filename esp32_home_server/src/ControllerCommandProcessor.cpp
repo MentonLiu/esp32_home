@@ -199,6 +199,8 @@ void ControllerCommandProcessor::refreshState()
     // 从各控制器回读真实状态，避免“仅靠命令假设状态”。
     state_.fanMode = fan_.mode();
     state_.fanSpeedPercent = fan_.speedPercent();
+    state_.fanOutputActive = fan_.outputActive();
+    state_.fanPwmDuty = fan_.pwmDuty();
     state_.curtainAngle = curtain_.angle();
 }
 

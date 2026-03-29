@@ -18,7 +18,22 @@ struct SensorSnapshot
     String smokeLevel = "green";
     bool hasError = false;
     String errorMessage;
+    bool sensorStale = false;
+    unsigned long sensorLastGoodTimestamp = 0;
+    String sensorReadStatus = "booting";
     unsigned long timestamp = 0;
+};
+
+struct DhtReadResult
+{
+    float temperatureC = 0.0F;
+    float humidityPercent = 0.0F;
+    bool hasValidReading = false;
+    bool usedCachedValue = false;
+    String status = "booting";
+    String error;
+    unsigned long attemptedAt = 0;
+    unsigned long lastGoodTimestamp = 0;
 };
 
 // 温湿度传感器封装，提供统一读取接口。
@@ -30,11 +45,22 @@ public:
 
     // 初始化 DHT 设备。
     void begin();
-    // 读取温湿度；失败时返回 false 并写入 error。
-    bool read(float &temperatureC, float &humidityPercent, String &error);
+    // 读取温湿度，内部处理最小采样间隔、失败重试和旧值保留。
+    DhtReadResult read();
+
+    uint8_t pin() const;
+    uint8_t sensorType() const;
 
 private:
     DHT dht_;
+    uint8_t pin_;
+    uint8_t sensorType_;
+    float lastTemperatureC_ = 0.0F;
+    float lastHumidityPercent_ = 0.0F;
+    bool hasLastValidReading_ = false;
+    unsigned long lastAttemptMs_ = 0;
+    unsigned long lastGoodMs_ = 0;
+    unsigned long lastWarnLogMs_ = 0;
 };
 
 // 通用模数采样传感器，读数映射为百分比。

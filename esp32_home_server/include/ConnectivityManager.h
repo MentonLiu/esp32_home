@@ -104,6 +104,7 @@ private:
     unsigned long lastModeCheckMs_ = 0;
     unsigned long lastMqttRetryMs_ = 0;
     unsigned long lastStationConnectAttemptMs_ = 0;
+    unsigned long mqttRetryBackoffMs_ = 5000;
 
     // 供静态回调使用的全局单例指针。
     static ConnectivityManager *instance_;

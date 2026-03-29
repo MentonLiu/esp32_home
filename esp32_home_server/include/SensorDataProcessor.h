@@ -5,6 +5,7 @@
 #define SENSOR_DATA_PROCESSOR_H
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 
 #include "Sensor.h"
 #include "SystemContracts.h"
@@ -33,6 +34,8 @@ public:
 private:
     // 将原始快照映射到统一结构。
     void normalize(const SensorSnapshot &snapshot);
+    void appendSensorFields(JsonObject target) const;
+    void appendControllerFields(JsonObject target, const ControllerState &controllerState) const;
 
     SensorHub &sensorHub_;
     StandardSensorData latest_;

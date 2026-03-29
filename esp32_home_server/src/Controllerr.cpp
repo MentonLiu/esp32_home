@@ -3,6 +3,8 @@
 
 #include "Controllerr.h"
 
+#include "Logger.h"
+
 namespace
 {
     // 常见直流电机驱动板在 1k-5kHz 区间兼容性更好。
@@ -51,10 +53,16 @@ void RelayFanController::setSpeedPercent(uint8_t speedPercent)
 {
     // 百分比换算为 8bit 占空比。
     speedPercent_ = constrain(speedPercent, 0, 100);
-    const uint8_t duty = static_cast<uint8_t>(map(speedPercent_, 0, 100, 0, 255));
-    ledcWrite(pwmChannel_, duty);
+    pwmDuty_ = static_cast<uint8_t>(map(speedPercent_, 0, 100, 0, 255));
+    ledcWrite(pwmChannel_, pwmDuty_);
     // 同步更新档位语义，供页面显示。
     mode_ = modeFromSpeed(speedPercent_);
+    LOG_INFO("FAN", "PWM 更新: pin=%u channel=%u speed=%u%% duty=%u mode=%s",
+             pin_,
+             pwmChannel_,
+             speedPercent_,
+             pwmDuty_,
+             fanModeToString(mode_));
 }
 
 FanMode RelayFanController::mode() const
@@ -65,6 +73,31 @@ FanMode RelayFanController::mode() const
 uint8_t RelayFanController::speedPercent() const
 {
     return speedPercent_;
+}
+
+bool RelayFanController::outputActive() const
+{
+    return pwmDuty_ > 0;
+}
+
+uint8_t RelayFanController::pwmDuty() const
+{
+    return pwmDuty_;
+}
+
+uint8_t RelayFanController::pin() const
+{
+    return pin_;
+}
+
+uint8_t RelayFanController::pwmChannel() const
+{
+    return pwmChannel_;
+}
+
+uint32_t RelayFanController::pwmFrequencyHz() const
+{
+    return kFanPwmFrequencyHz;
 }
 
 FanMode RelayFanController::modeFromSpeed(uint8_t speedPercent) const

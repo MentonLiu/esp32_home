@@ -47,12 +47,11 @@ ConnectivityManager::ConnectivityManager(const char *stationSsid,
 
 void ConnectivityManager::begin()
 {
-    // 局域网优先：仅启用 STA，通过路由器内网地址访问控制页面。
+    // 局域网优先：通过家庭主路由器访问本地网页。
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true);
     mqttClient_.setCallback(ConnectivityManager::handleMqttDispatch);
 
-    // 不自动开启 AP；仅尝试连接家庭路由器。
     mode_ = OperatingMode::LocalAP;
 
     // 非阻塞发起 STA 连接，避免启动阶段长时间不可控。
@@ -115,8 +114,8 @@ void ConnectivityManager::setMqttHandler(MqttHandler handler)
 
 bool ConnectivityManager::mqttPublish(const char *topic, const String &payload)
 {
-    // 发布前先确保连接可用。
-    if (!ensureMqttConnected())
+    // 本地网页优先：发布路径不主动触发云端重连，避免阻塞 Web 响应。
+    if (!mqttClient_.connected())
     {
         return false;
     }
@@ -209,16 +208,12 @@ void ConnectivityManager::evaluateMode()
     if (isInternetConnected())
     {
         stationConnectInProgress_ = false;
-        // STA 联网成功后确保 AP 关闭，避免切到热点模式。
-        stopLocalAp();
         mode_ = OperatingMode::Cloud;
         ensureMdnsState();
         announceAccessUrl();
         return;
     }
 
-    // 未连上路由器时不自动开启 AP，等待 STA 重连。
-    stopLocalAp();
     mode_ = OperatingMode::LocalAP;
     ensureMdnsState();
     announceAccessUrl();
@@ -306,7 +301,7 @@ bool ConnectivityManager::ensureMqttConnected()
     }
 
     // 限制重连频率，避免紧密重试循环。
-    if (millis() - lastMqttRetryMs_ < 5000)
+    if (millis() - lastMqttRetryMs_ < mqttRetryBackoffMs_)
     {
         return false;
     }
@@ -319,6 +314,7 @@ bool ConnectivityManager::ensureMqttConnected()
         if (WiFi.hostByName(mqttHost_, resolved) != 1)
         {
             LOG_WARN("MQTT", "DNS 解析失败: %s", mqttHost_);
+            mqttRetryBackoffMs_ = 30000;
             return false;
         }
         mqttClient_.setServer(resolved, mqttPort_);
@@ -344,6 +340,12 @@ bool ConnectivityManager::ensureMqttConnected()
     if (connected && mqttControlTopic_ != nullptr)
     {
         mqttClient_.subscribe(mqttControlTopic_);
+        mqttRetryBackoffMs_ = 5000;
+    }
+    else if (!connected)
+    {
+        mqttRetryBackoffMs_ = 30000;
+        LOG_WARN("MQTT", "连接失败，30 秒后重试");
     }
 
     return connected;

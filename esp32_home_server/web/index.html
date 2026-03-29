@@ -465,7 +465,26 @@
 
                 document.getElementById('systemHeadline').textContent = headline;
                 document.getElementById('systemDetails').textContent = details;
-                document.getElementById('errorMessage').textContent = data.error ? `传感器异常：${data.errorMessage}` : '';
+                const diagnostics = [];
+                if (data.sensorReadStatus === 'cached') {
+                    diagnostics.push('温湿度处于采样间隔内，显示最近一次有效值');
+                } else if (data.sensorReadStatus === 'recovered_with_last_value') {
+                    diagnostics.push('温湿度本次读取失败，已回退到上次有效值');
+                } else if (data.sensorReadStatus === 'no_valid_data') {
+                    diagnostics.push('温湿度暂无有效数据，请检查 DHT11 接线和供电');
+                }
+
+                if (data.error && data.errorMessage) {
+                    diagnostics.push(`诊断：${data.errorMessage}`);
+                }
+
+                if (data.fanSpeedPercent > 0 && !data.fanOutputActive) {
+                    diagnostics.push('风扇目标速度已下发，但当前 PWM 输出未激活');
+                } else if (data.fanOutputActive) {
+                    diagnostics.push(`风扇 PWM 输出中，占空比 ${data.fanPwmDuty}`);
+                }
+
+                document.getElementById('errorMessage').textContent = diagnostics.join('；');
             } catch (error) {
                 // 状态接口异常兜底展示。
                 document.getElementById('systemHeadline').textContent = '状态拉取失败';

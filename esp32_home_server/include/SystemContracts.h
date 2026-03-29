@@ -55,6 +55,12 @@ struct StandardSensorData
     bool hasError = false;
     // 错误文字（如 dht_read_failed）。
     String errorMessage;
+    // 当前展示的温湿度是否来自旧的有效样本。
+    bool sensorStale = false;
+    // 最近一次成功读取温湿度的时间戳。
+    unsigned long sensorLastGoodTimestamp = 0;
+    // 读取状态（ok/cached/recovered_with_last_value/no_valid_data/...）。
+    String sensorReadStatus = "booting";
     // 采样时间戳（毫秒，来自 millis）。
     unsigned long timestamp = 0;
 };
@@ -67,6 +73,10 @@ struct ControllerState
     FanMode fanMode = FanMode::Off;
     // 风扇速度百分比。
     uint8_t fanSpeedPercent = 0;
+    // 当前 PWM 输出是否处于激活状态。
+    bool fanOutputActive = false;
+    // 当前 PWM 占空比（0-255）。
+    uint8_t fanPwmDuty = 0;
     // 窗帘当前角度（0-180）。
     uint8_t curtainAngle = 0;
     // 最近一次窗帘预设编号。

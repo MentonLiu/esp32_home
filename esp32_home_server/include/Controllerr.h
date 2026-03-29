@@ -10,7 +10,7 @@
 #include "SystemContracts.h"
 
 // 风扇控制器（历史命名保留为 RelayFanController）：
-// 实际实现是“直流电机 PWM 调速”，需要外部 MOSFET/电机驱动板，
+// 实际实现是“PWM 风扇驱动”，需要外部 MOSFET/电机驱动板，
 // 不能直接通过机械继电器实现速度控制。
 class RelayFanController
 {
@@ -30,6 +30,14 @@ public:
     FanMode mode() const;
     // 当前速度百分比。
     uint8_t speedPercent() const;
+    // 当前 PWM 输出是否处于激活状态。
+    bool outputActive() const;
+    // 当前占空比（0-255）。
+    uint8_t pwmDuty() const;
+    // 诊断用引脚/通道/频率信息。
+    uint8_t pin() const;
+    uint8_t pwmChannel() const;
+    uint32_t pwmFrequencyHz() const;
 
 private:
     // 根据百分比回推档位，便于状态展示。
@@ -38,6 +46,7 @@ private:
     uint8_t pin_;
     uint8_t pwmChannel_;
     uint8_t speedPercent_ = 0;
+    uint8_t pwmDuty_ = 0;
     FanMode mode_ = FanMode::Off;
 };
 

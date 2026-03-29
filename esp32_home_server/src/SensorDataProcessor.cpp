@@ -63,16 +63,7 @@ String SensorDataProcessor::buildSensorJson() const
     // 轻量传感器快照，用于上行遥测。
     JsonDocument doc;
     doc["sensorType"] = "home_snapshot";
-    doc["timestamp"] = latest_.timestamp;
-    doc["temperatureC"] = latest_.temperatureC;
-    doc["humidityPercent"] = latest_.humidityPercent;
-    doc["lightPercent"] = latest_.lightPercent;
-    doc["mq2Percent"] = latest_.mq2Percent;
-    doc["rainPercent"] = latest_.rainPercent;
-    doc["isRaining"] = latest_.isRaining;
-    doc["smokeLevel"] = latest_.smokeLevel;
-    doc["error"] = latest_.hasError;
-    doc["errorMessage"] = latest_.errorMessage;
+    appendSensorFields(doc.to<JsonObject>());
 
     String payload;
     serializeJson(doc, payload);
@@ -85,38 +76,16 @@ String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip
     JsonDocument doc;
     doc["mode"] = modeToString(mode);
     doc["ip"] = ip;
-    doc["sensorTimestamp"] = latest_.timestamp;
-    doc["temperatureC"] = latest_.temperatureC;
-    doc["humidityPercent"] = latest_.humidityPercent;
-    doc["lightPercent"] = latest_.lightPercent;
-    doc["mq2Percent"] = latest_.mq2Percent;
-    doc["rainPercent"] = latest_.rainPercent;
-    doc["isRaining"] = latest_.isRaining;
-    doc["smokeLevel"] = latest_.smokeLevel;
-    doc["fanMode"] = fanModeToString(controllerState.fanMode);
-    doc["fanSpeedPercent"] = controllerState.fanSpeedPercent;
-    doc["curtainAngle"] = controllerState.curtainAngle;
-    doc["error"] = latest_.hasError;
-    doc["errorMessage"] = latest_.errorMessage;
+    appendSensorFields(doc.to<JsonObject>());
+    appendControllerFields(doc.to<JsonObject>(), controllerState);
 
     JsonObject sensor = doc["sensor"].to<JsonObject>();
     // 冗余一份 sensor 子对象，便于前端按分组读取。
-    sensor["temperatureC"] = latest_.temperatureC;
-    sensor["humidityPercent"] = latest_.humidityPercent;
-    sensor["lightPercent"] = latest_.lightPercent;
-    sensor["mq2Percent"] = latest_.mq2Percent;
-    sensor["rainPercent"] = latest_.rainPercent;
-    sensor["isRaining"] = latest_.isRaining;
-    sensor["smokeLevel"] = latest_.smokeLevel;
-    sensor["timestamp"] = latest_.timestamp;
-    sensor["error"] = latest_.hasError;
-    sensor["errorMessage"] = latest_.errorMessage;
+    appendSensorFields(sensor);
 
     JsonObject controller = doc["controller"].to<JsonObject>();
     // 冗余一份 controller 子对象。
-    controller["fanMode"] = fanModeToString(controllerState.fanMode);
-    controller["fanSpeedPercent"] = controllerState.fanSpeedPercent;
-    controller["curtainAngle"] = controllerState.curtainAngle;
+    appendControllerFields(controller, controllerState);
     if (controllerState.hasCurtainPreset)
     {
         controller["curtainPreset"] = controllerState.lastCurtainPreset;
@@ -153,5 +122,35 @@ void SensorDataProcessor::normalize(const SensorSnapshot &snapshot)
     latest_.smokeLevel = snapshot.smokeLevel;
     latest_.hasError = snapshot.hasError;
     latest_.errorMessage = snapshot.errorMessage;
+    latest_.sensorStale = snapshot.sensorStale;
+    latest_.sensorLastGoodTimestamp = snapshot.sensorLastGoodTimestamp;
+    latest_.sensorReadStatus = snapshot.sensorReadStatus;
     latest_.timestamp = snapshot.timestamp;
+}
+
+void SensorDataProcessor::appendSensorFields(JsonObject target) const
+{
+    target["sensorTimestamp"] = latest_.timestamp;
+    target["timestamp"] = latest_.timestamp;
+    target["temperatureC"] = latest_.temperatureC;
+    target["humidityPercent"] = latest_.humidityPercent;
+    target["lightPercent"] = latest_.lightPercent;
+    target["mq2Percent"] = latest_.mq2Percent;
+    target["rainPercent"] = latest_.rainPercent;
+    target["isRaining"] = latest_.isRaining;
+    target["smokeLevel"] = latest_.smokeLevel;
+    target["error"] = latest_.hasError;
+    target["errorMessage"] = latest_.errorMessage;
+    target["sensorStale"] = latest_.sensorStale;
+    target["sensorLastGoodTimestamp"] = latest_.sensorLastGoodTimestamp;
+    target["sensorReadStatus"] = latest_.sensorReadStatus;
+}
+
+void SensorDataProcessor::appendControllerFields(JsonObject target, const ControllerState &controllerState) const
+{
+    target["fanMode"] = fanModeToString(controllerState.fanMode);
+    target["fanSpeedPercent"] = controllerState.fanSpeedPercent;
+    target["fanOutputActive"] = controllerState.fanOutputActive;
+    target["fanPwmDuty"] = controllerState.fanPwmDuty;
+    target["curtainAngle"] = controllerState.curtainAngle;
 }

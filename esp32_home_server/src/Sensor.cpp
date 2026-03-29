@@ -6,59 +6,103 @@
 #include <math.h>
 #include "Logger.h"
 
-DhtSensor::DhtSensor(uint8_t pin, uint8_t sensorType) : dht_(pin, sensorType) {}
-
 namespace
 {
-// ESP32-S3 上部分 DHT 实现会在关键时序阶段关闭中断，偶发触发 Interrupt WDT。
-// 先默认关闭 DHT 实读以保证系统稳定；硬件与驱动确认后可再恢复。
-#if defined(CONFIG_IDF_TARGET_ESP32S3)
-    constexpr bool kEnableDhtReadOnEsp32S3 = false;
-#else
-    constexpr bool kEnableDhtReadOnEsp32S3 = true;
-#endif
+    constexpr unsigned long kDhtMinReadIntervalMs = 2200;
+    constexpr uint8_t kDhtRetryCount = 2;
+    constexpr unsigned long kDhtRetryDelayMs = 30;
+    constexpr unsigned long kDhtWarnIntervalMs = 10000;
 } // namespace
+
+DhtSensor::DhtSensor(uint8_t pin, uint8_t sensorType)
+    : dht_(pin, sensorType), pin_(pin), sensorType_(sensorType) {}
 
 void DhtSensor::begin()
 {
     // DHT 库内部会完成引脚与时序初始化。
     dht_.begin();
-    LOG_INFO("DHT", "DHT 传感器初始化完成");
+    LOG_INFO("DHT", "DHT 传感器初始化完成: pin=%u type=%s", pin_, sensorType_ == DHT11 ? "DHT11" : "UNKNOWN");
 }
 
-bool DhtSensor::read(float &temperatureC, float &humidityPercent, String &error)
+DhtReadResult DhtSensor::read()
 {
-#if defined(CONFIG_IDF_TARGET_ESP32S3)
-    if (!kEnableDhtReadOnEsp32S3)
-    {
-        error = "dht_disabled_on_esp32s3";
-        static unsigned long lastWarnTime = 0;
-        if (millis() - lastWarnTime > 10000)
-        {
-            LOG_WARN("DHT", "ESP32-S3 已临时禁用 DHT 实读以规避 WDT，温湿度保持上次值");
-            lastWarnTime = millis();
-        }
-        return false;
-    }
-#endif
+    DhtReadResult result;
+    result.attemptedAt = millis();
+    result.lastGoodTimestamp = lastGoodMs_;
 
-    // 温湿度传感器可能出现瞬时读取失败，是否保留旧值由上层决定。
-    temperatureC = dht_.readTemperature();
-    humidityPercent = dht_.readHumidity();
-    if (isnan(temperatureC) || isnan(humidityPercent))
+    if (hasLastValidReading_ && result.attemptedAt - lastAttemptMs_ < kDhtMinReadIntervalMs)
     {
-        error = "dht_read_failed";
-        static unsigned long lastWarnTime = 0;
-        // 每10秒输出一次警告，避免日志刷屏
-        if (millis() - lastWarnTime > 10000)
-        {
-            LOG_WARN("DHT", "读取失败 - 请检查: 1) DHT11接线 2) 电源和GND是否正确连接 3) 数据线是否有上拉电阻(4.7kΩ)");
-            lastWarnTime = millis();
-        }
-        return false;
+        result.temperatureC = lastTemperatureC_;
+        result.humidityPercent = lastHumidityPercent_;
+        result.hasValidReading = true;
+        result.usedCachedValue = true;
+        result.status = "cached";
+        return result;
     }
 
-    return true;
+    lastAttemptMs_ = result.attemptedAt;
+    for (uint8_t attempt = 0; attempt < kDhtRetryCount; ++attempt)
+    {
+        const float temperatureC = dht_.readTemperature();
+        const float humidityPercent = dht_.readHumidity();
+        if (!isnan(temperatureC) && !isnan(humidityPercent))
+        {
+            lastTemperatureC_ = temperatureC;
+            lastHumidityPercent_ = humidityPercent;
+            lastGoodMs_ = millis();
+            hasLastValidReading_ = true;
+
+            result.temperatureC = temperatureC;
+            result.humidityPercent = humidityPercent;
+            result.hasValidReading = true;
+            result.usedCachedValue = false;
+            result.status = "ok";
+            result.lastGoodTimestamp = lastGoodMs_;
+            return result;
+        }
+
+        if (attempt + 1 < kDhtRetryCount)
+        {
+            delay(kDhtRetryDelayMs);
+        }
+    }
+
+    result.error = "dht_read_failed";
+    if (hasLastValidReading_)
+    {
+        result.temperatureC = lastTemperatureC_;
+        result.humidityPercent = lastHumidityPercent_;
+        result.hasValidReading = true;
+        result.usedCachedValue = true;
+        result.status = "recovered_with_last_value";
+        result.lastGoodTimestamp = lastGoodMs_;
+    }
+    else
+    {
+        result.status = "no_valid_data";
+    }
+
+    if (result.attemptedAt - lastWarnLogMs_ >= kDhtWarnIntervalMs)
+    {
+        LOG_WARN("DHT",
+                 "读取失败: pin=%u type=%s status=%s，检查接线/供电/上拉电阻",
+                 pin_,
+                 sensorType_ == DHT11 ? "DHT11" : "UNKNOWN",
+                 result.status.c_str());
+        lastWarnLogMs_ = result.attemptedAt;
+    }
+
+    return result;
+}
+
+uint8_t DhtSensor::pin() const
+{
+    return pin_;
+}
+
+uint8_t DhtSensor::sensorType() const
+{
+    return sensorType_;
 }
 
 // 模拟量传感器通过 ADC 读取并映射为百分比，支持反转与自定义最大值。
@@ -128,14 +172,34 @@ bool SensorHub::poll(unsigned long intervalMs)
     latest_.hasError = false;
     latest_.errorMessage = "";
 
-    // 温湿度传感器失败会记录错误，但不阻断其他传感器更新。
-    String error;
-    if (!dht_.read(latest_.temperatureC, latest_.humidityPercent, error))
+    const DhtReadResult dhtResult = dht_.read();
+    latest_.sensorReadStatus = dhtResult.status;
+    latest_.sensorLastGoodTimestamp = dhtResult.lastGoodTimestamp;
+
+    if (dhtResult.hasValidReading)
     {
-        // DHT 失败属于可恢复错误，不影响其它传感器继续采样。
+        latest_.temperatureC = dhtResult.temperatureC;
+        latest_.humidityPercent = dhtResult.humidityPercent;
+    }
+
+    // 温湿度传感器失败会记录错误，但不阻断其他传感器更新。
+    if (!dhtResult.error.isEmpty())
+    {
         latest_.hasError = true;
-        latest_.errorMessage = error;
-        LOG_WARN("SENSOR", "DHT 读取失败，温度/湿度将保持前一次读值");
+        latest_.errorMessage = dhtResult.error;
+        latest_.sensorStale = dhtResult.usedCachedValue;
+        static unsigned long lastSensorWarnLogMs = 0;
+        if (now - lastSensorWarnLogMs >= kDhtWarnIntervalMs)
+        {
+            LOG_WARN("SENSOR", "DHT 读取失败，status=%s，温湿度%s",
+                     dhtResult.status.c_str(),
+                     dhtResult.usedCachedValue ? "保持上次有效值" : "暂无有效值");
+            lastSensorWarnLogMs = now;
+        }
+    }
+    else
+    {
+        latest_.sensorStale = dhtResult.usedCachedValue;
     }
 
     latest_.lightPercent = light_.readPercent();
