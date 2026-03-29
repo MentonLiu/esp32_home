@@ -104,6 +104,10 @@ private:
     unsigned long lastModeCheckMs_ = 0;
     unsigned long lastMqttRetryMs_ = 0;
     unsigned long lastStationConnectAttemptMs_ = 0;
+    unsigned long lastDnsResolveAttemptMs_ = 0;
+    unsigned long lastDnsResolveSuccessMs_ = 0;
+    IPAddress cachedMqttIp_;
+    bool hasCachedMqttIp_ = false;
 
     // 供静态回调使用的全局单例指针。
     static ConnectivityManager *instance_;
