@@ -27,6 +27,11 @@ namespace client_config
     constexpr unsigned long kServerRediscoveryIntervalMs = 3000UL;
     constexpr unsigned long kHttpTimeoutMs = 1200UL;
 
+    // 诊断日志配置：级别 1=E, 2=W, 3=I, 4=D。
+    constexpr bool kEnableDiagnosticsLog = true;
+    constexpr uint8_t kDiagnosticsLogLevel = 3;
+    constexpr unsigned long kDiagnosticsPeriodicLogMs = 2000UL;
+
     // 8Pin 显示器切到 LVGL 驱动，当前先完成底层初始化与留白显示。
     constexpr bool kEnableTft = true;
     constexpr bool kEnableLcd1602 = true;

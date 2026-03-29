@@ -4,6 +4,7 @@
 #include "InputManager.h"
 
 #include "ClientConfig.h"
+#include "ClientLog.h"
 
 namespace
 {
@@ -16,6 +17,7 @@ void InputManager::begin()
     pinMode(client_config::kButton2Pin, INPUT_PULLUP);
     pinMode(client_config::kButton3Pin, INPUT_PULLUP);
     pinMode(client_config::kButton4Pin, INPUT_PULLUP);
+    CL_INFO("IN", "begin", "buttons=4 mode=input_pullup");
 }
 
 bool InputManager::nextEvent(InputEvent &event)
@@ -28,6 +30,7 @@ bool InputManager::nextEvent(InputEvent &event)
                           button1ChangeMs_))
     {
         event.type = InputEventType::Button1;
+        CL_INFO("IN", "button_press", "type=button1");
         return true;
     }
     if (readButtonPressed(client_config::kButton2Pin,
@@ -36,6 +39,7 @@ bool InputManager::nextEvent(InputEvent &event)
                           button2ChangeMs_))
     {
         event.type = InputEventType::Button2;
+        CL_INFO("IN", "button_press", "type=button2");
         return true;
     }
     if (readButtonPressed(client_config::kButton3Pin,
@@ -44,6 +48,7 @@ bool InputManager::nextEvent(InputEvent &event)
                           button3ChangeMs_))
     {
         event.type = InputEventType::Button3;
+        CL_INFO("IN", "button_press", "type=button3");
         return true;
     }
     if (readButtonPressed(client_config::kButton4Pin,
@@ -52,6 +57,7 @@ bool InputManager::nextEvent(InputEvent &event)
                           button4ChangeMs_))
     {
         event.type = InputEventType::Button4;
+        CL_INFO("IN", "button_press", "type=button4");
         return true;
     }
 

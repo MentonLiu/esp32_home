@@ -49,7 +49,9 @@ private:
     bool lcdReady_ = false;
     bool tftReady_ = false;
     bool tftStaticPainted_ = false;
+    bool firstFrameLogged_ = false;
     unsigned long lastRenderMs_ = 0;
+    unsigned long lastRenderLogMs_ = 0;
 };
 
 #endif

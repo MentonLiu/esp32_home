@@ -4,6 +4,7 @@
 #include "OutputManager.h"
 
 #include "ClientConfig.h"
+#include "ClientLog.h"
 
 namespace
 {
@@ -108,6 +109,9 @@ OutputManager::OutputManager()
 
 void OutputManager::begin()
 {
+    const unsigned long startMs = millis();
+    CL_INFO("REN", "output_begin", "phase=start");
+
     pinMode(client_config::kRgbRedPin, OUTPUT);
     pinMode(client_config::kRgbGreenPin, OUTPUT);
     pinMode(client_config::kRgbBluePin, OUTPUT);
@@ -115,17 +119,22 @@ void OutputManager::begin()
 
     if (client_config::kEnableLcd1602)
     {
+        const unsigned long lcdStartMs = millis();
+        CL_INFO("REN", "lcd_init", "phase=start");
         Wire.begin(client_config::kLcdSda, client_config::kLcdScl);
         lcd_.init();
         lcd_.backlight();
         lcd_.clear();
         lcdReady_ = true;
+        CL_INFOF("REN", "lcd_init", "phase=done dur_ms=%lu", millis() - lcdStartMs);
     }
 
     if (client_config::kEnableTft)
     {
         beginTft();
     }
+
+    CL_INFOF("REN", "output_begin", "phase=done dur_ms=%lu", millis() - startMs);
 }
 
 void OutputManager::render(const ClientWiFiManager &wifiManager,
@@ -135,18 +144,39 @@ void OutputManager::render(const ClientWiFiManager &wifiManager,
 {
     updateRgb(status.smokeLevel);
 
-    if (millis() - lastRenderMs_ < client_config::kDisplayRefreshIntervalMs)
+    const unsigned long nowMs = millis();
+    const unsigned long elapsedMs = nowMs - lastRenderMs_;
+
+    if (elapsedMs < client_config::kDisplayRefreshIntervalMs)
     {
+        if (client_log::allowPeriodic(lastRenderLogMs_, client_config::kDiagnosticsPeriodicLogMs))
+        {
+            CL_INFOF("REN", "frame_skip", "elapsed_ms=%lu target_ms=%lu", elapsedMs, client_config::kDisplayRefreshIntervalMs);
+        }
         return;
     }
-    lastRenderMs_ = millis();
+    lastRenderMs_ = nowMs;
 
     renderTftHtmlPage(wifiManager, status, lastMessage, serverReachable);
     renderLcd(wifiManager, status);
+
+    if (client_log::allowPeriodic(lastRenderLogMs_, client_config::kDiagnosticsPeriodicLogMs))
+    {
+        CL_INFOF("REN", "frame_done", "elapsed_ms=%lu", elapsedMs);
+    }
+
+    if (!firstFrameLogged_)
+    {
+        firstFrameLogged_ = true;
+        CL_INFOF("REN", "first_frame", "since_boot_ms=%lu", client_log::sinceBootMs());
+    }
 }
 
 void OutputManager::beginTft()
 {
+    const unsigned long startMs = millis();
+    CL_INFO("REN", "tft_init", "phase=start");
+
     pinMode(client_config::kTftBacklight, OUTPUT);
     digitalWrite(client_config::kTftBacklight, HIGH);
 
@@ -155,10 +185,15 @@ void OutputManager::beginTft()
     tft_.fillScreen(TFT_BLACK);
     tftStaticPainted_ = false;
     tftReady_ = true;
+    firstFrameLogged_ = false;
+    CL_INFOF("REN", "tft_init", "phase=done dur_ms=%lu", millis() - startMs);
 }
 
 void OutputManager::drawTftStaticLayout()
 {
+    const unsigned long startMs = millis();
+    CL_INFO("REN", "tft_static", "phase=start");
+
     for (int y = 0; y < client_config::kTftHeight; ++y)
     {
         const uint8_t mix = static_cast<uint8_t>((y * 255) / client_config::kTftHeight);
@@ -182,6 +217,8 @@ void OutputManager::drawTftStaticLayout()
     tft_.setTextFont(2);
     tft_.drawString("TEMP / HUM / FAN", 32, 196);
     tft_.fillRoundRect(24, 242, 166, 28, 8, kPanelFill);
+
+    CL_INFOF("REN", "tft_static", "phase=done dur_ms=%lu", millis() - startMs);
 }
 
 void OutputManager::renderTftHtmlPage(const ClientWiFiManager &wifiManager,
