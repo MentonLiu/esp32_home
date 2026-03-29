@@ -62,8 +62,9 @@ String SensorDataProcessor::buildSensorJson() const
 {
     // 轻量传感器快照，用于上行遥测。
     JsonDocument doc;
-    doc["sensorType"] = "home_snapshot";
-    appendSensorFields(doc.to<JsonObject>());
+    JsonObject root = doc.to<JsonObject>();
+    root["sensorType"] = "home_snapshot";
+    appendSensorFields(root);
 
     String payload;
     serializeJson(doc, payload);
@@ -74,16 +75,17 @@ String SensorDataProcessor::buildStatusJson(OperatingMode mode, const String &ip
 {
     // 完整状态对象，兼容旧字段和嵌套字段两种读取方式。
     JsonDocument doc;
-    doc["mode"] = modeToString(mode);
-    doc["ip"] = ip;
-    appendSensorFields(doc.to<JsonObject>());
-    appendControllerFields(doc.to<JsonObject>(), controllerState);
+    JsonObject root = doc.to<JsonObject>();
+    root["mode"] = modeToString(mode);
+    root["ip"] = ip;
+    appendSensorFields(root);
+    appendControllerFields(root, controllerState);
 
-    JsonObject sensor = doc["sensor"].to<JsonObject>();
+    JsonObject sensor = root["sensor"].to<JsonObject>();
     // 冗余一份 sensor 子对象，便于前端按分组读取。
     appendSensorFields(sensor);
 
-    JsonObject controller = doc["controller"].to<JsonObject>();
+    JsonObject controller = root["controller"].to<JsonObject>();
     // 冗余一份 controller 子对象。
     appendControllerFields(controller, controllerState);
     if (controllerState.hasCurtainPreset)
