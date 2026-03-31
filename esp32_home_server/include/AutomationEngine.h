@@ -34,7 +34,6 @@ public:
     void loop(const StandardSensorData &sensorData);
 
 private:
-    // 联网后配置 NTP 时间服务。
     void ensureTimeSource();
     // 统一当前时间来源：NTP -> Unix 回退时钟。
     time_t currentTime();
@@ -58,7 +57,7 @@ private:
     // 是否已配置 NTP。
     bool ntpConfigured_ = false;
     // 回退时间基准（Unix 时间秒）。
-    time_t fallbackBaseUnix_ = 1704067200;
+    time_t fallbackBaseUnix_ = 0;
     unsigned long fallbackBaseMillis_ = 0;
 
     // 限流与去重状态。

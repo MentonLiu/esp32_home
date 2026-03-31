@@ -26,6 +26,12 @@ namespace client_config
     constexpr unsigned long kControlCooldownMs = 180UL;
     constexpr unsigned long kServerRediscoveryIntervalMs = 3000UL;
     constexpr unsigned long kHttpTimeoutMs = 1200UL;
+    constexpr unsigned long kTimeSyncRetryIntervalMs = 15000UL;
+
+    // 时间同步配置：默认使用中国时区，如需其他地区可调整 POSIX TZ 字符串。
+    constexpr const char *kTimeZone = "CST-8";
+    constexpr const char *kNtpServerPrimary = "ntp.aliyun.com";
+    constexpr const char *kNtpServerSecondary = "pool.ntp.org";
 
     // 诊断日志配置：级别 1=E, 2=W, 3=I, 4=D。
     constexpr bool kEnableDiagnosticsLog = true;

@@ -99,6 +99,11 @@ namespace
     {
         return value < 10 ? String("0") + value : String(value);
     }
+
+    String formatTwoDigits(int value)
+    {
+        return value < 10 ? String("0") + value : String(value);
+    }
 } // namespace
 
 OutputManager::OutputManager()
@@ -143,6 +148,7 @@ void OutputManager::render(const ClientWiFiManager &wifiManager,
                            bool serverReachable)
 {
     updateRgb(status.smokeLevel);
+    syncSystemTime(wifiManager);
 
     const unsigned long nowMs = millis();
     const unsigned long elapsedMs = nowMs - lastRenderMs_;
@@ -346,29 +352,38 @@ String OutputManager::fit16(const String &text) const
 
 String OutputManager::buildClockText() const
 {
-    const unsigned long totalMinutes = millis() / 60000UL;
-    const unsigned long hours = (12UL + (totalMinutes / 60UL)) % 24UL;
-    const unsigned long minutes = totalMinutes % 60UL;
-    return formatTwoDigits(hours) + ":" + formatTwoDigits(minutes);
+    struct tm timeinfo;
+    if (!getCurrentLocalTime(timeinfo))
+    {
+        return "--:--";
+    }
+
+    return formatTwoDigits(timeinfo.tm_hour) + ":" + formatTwoDigits(timeinfo.tm_min);
 }
 
 String OutputManager::buildDateText() const
 {
-    const String buildDate = __DATE__;
-    const String monthToken = buildDate.substring(0, 3);
-    const String dayToken = buildDate.substring(4, 6);
-    const String day = String(dayToken.toInt());
-    return String(monthFromDateToken(monthToken)) + " " + day;
+    struct tm timeinfo;
+    if (!getCurrentLocalTime(timeinfo))
+    {
+        return "-- --";
+    }
+
+    static const char *const kMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    return String(kMonths[timeinfo.tm_mon]) + " " + String(timeinfo.tm_mday);
 }
 
 String OutputManager::buildWeekdayText() const
 {
-    const String buildDate = __DATE__;
-    const String monthToken = buildDate.substring(0, 3);
-    const int month = monthIndexFromToken(monthToken);
-    const int day = buildDate.substring(4, 6).toInt();
-    const int year = buildDate.substring(7).toInt();
-    return String(weekdayName(weekdayIndex(year, month, day)));
+    struct tm timeinfo;
+    if (!getCurrentLocalTime(timeinfo))
+    {
+        return "---";
+    }
+
+    static const char *const kWeekdays[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+    return String(kWeekdays[timeinfo.tm_wday]);
 }
 
 String OutputManager::buildConnectionBadge(const ClientWiFiManager &wifiManager) const
@@ -421,4 +436,65 @@ uint16_t OutputManager::smokeColor565(const String &smokeLevel) const
         return TFT_ORANGE;
     }
     return TFT_RED;
+}
+
+void OutputManager::syncSystemTime(const ClientWiFiManager &wifiManager)
+{
+    if (!wifiManager.isConnected())
+    {
+        return;
+    }
+
+    if (!timeConfigApplied_)
+    {
+        configTzTime(client_config::kTimeZone,
+                     client_config::kNtpServerPrimary,
+                     client_config::kNtpServerSecondary);
+        timeConfigApplied_ = true;
+        lastTimeSyncAttemptMs_ = millis();
+        CL_INFOF("TIME", "config_applied", "tz=%s ntp1=%s ntp2=%s",
+                 client_config::kTimeZone,
+                 client_config::kNtpServerPrimary,
+                 client_config::kNtpServerSecondary);
+        return;
+    }
+
+    if (timeSynced_)
+    {
+        return;
+    }
+
+    const unsigned long nowMs = millis();
+    if (nowMs - lastTimeSyncAttemptMs_ < client_config::kTimeSyncRetryIntervalMs)
+    {
+        return;
+    }
+    lastTimeSyncAttemptMs_ = nowMs;
+
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo, 100))
+    {
+        timeSynced_ = true;
+        CL_INFOF("TIME", "sync_ok", "date=%04d-%02d-%02d time=%02d:%02d:%02d",
+                 timeinfo.tm_year + 1900,
+                 timeinfo.tm_mon + 1,
+                 timeinfo.tm_mday,
+                 timeinfo.tm_hour,
+                 timeinfo.tm_min,
+                 timeinfo.tm_sec);
+    }
+    else
+    {
+        CL_WARN("TIME", "sync_wait", "state=ntp_pending");
+    }
+}
+
+bool OutputManager::getCurrentLocalTime(struct tm &timeinfo) const
+{
+    if (!getLocalTime(&timeinfo, 10))
+    {
+        return false;
+    }
+
+    return timeinfo.tm_year >= (2024 - 1900);
 }

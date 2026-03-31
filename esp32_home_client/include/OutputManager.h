@@ -8,6 +8,7 @@
 #include <LiquidCrystal_I2C.h>
 #include <TFT_eSPI.h>
 #include <Wire.h>
+#include <time.h>
 
 #include "ClientConfig.h"
 #include "ClientContracts.h"
@@ -34,6 +35,8 @@ private:
     void updateRgb(const String &smokeLevel);
     void renderLcd(const ClientWiFiManager &wifiManager,
                    const ServerStatus &status);
+    void syncSystemTime(const ClientWiFiManager &wifiManager);
+    bool getCurrentLocalTime(struct tm &timeinfo) const;
     String fit16(const String &text) const;
     String buildClockText() const;
     String buildDateText() const;
@@ -50,8 +53,11 @@ private:
     bool tftReady_ = false;
     bool tftStaticPainted_ = false;
     bool firstFrameLogged_ = false;
+    bool timeConfigApplied_ = false;
+    bool timeSynced_ = false;
     unsigned long lastRenderMs_ = 0;
     unsigned long lastRenderLogMs_ = 0;
+    unsigned long lastTimeSyncAttemptMs_ = 0;
 };
 
 #endif
