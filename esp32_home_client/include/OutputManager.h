@@ -19,23 +19,32 @@ class OutputManager
 public:
     OutputManager();
 
+    // 初始化 RGB、LCD 与 TFT 硬件。
     void begin();
+    // 渲染当前状态的一帧画面。
     void render(const ClientWiFiManager &wifiManager,
                 const ServerStatus &status,
                 const String &lastMessage,
                 bool serverReachable);
 
 private:
+    // 初始化 TFT 屏幕与背光。
     void beginTft();
+    // 一次性绘制静态背景和卡片。
     void drawTftStaticLayout();
+    // 每帧刷新 TFT 动态区域。
     void renderTftHtmlPage(const ClientWiFiManager &wifiManager,
                            const ServerStatus &status,
                            const String &lastMessage,
                            bool serverReachable);
+    // 将烟雾等级映射到 RGB 指示灯。
     void updateRgb(const String &smokeLevel);
+    // 在 LCD1602 上显示精简状态。
     void renderLcd(const ClientWiFiManager &wifiManager,
                    const ServerStatus &status);
+    // 配置并重试 NTP 时间同步。
     void syncSystemTime(const ClientWiFiManager &wifiManager);
+    // 获取校验后的本地时间快照。
     bool getCurrentLocalTime(struct tm &timeinfo) const;
     String fit16(const String &text) const;
     String buildClockText() const;

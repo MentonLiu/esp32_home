@@ -11,10 +11,13 @@
 class InputManager
 {
 public:
+    // 配置物理按键引脚与上拉模式。
     void begin();
+    // 读取下一条消抖后的按键边沿事件。
     bool nextEvent(InputEvent &event);
 
 private:
+    // 对单个按键消抖，并在按下沿时上报。
     bool readButtonPressed(uint8_t pin, bool &stablePressed, bool &lastRawState, unsigned long &lastChangeMs);
 
     bool button1Pressed_ = false;

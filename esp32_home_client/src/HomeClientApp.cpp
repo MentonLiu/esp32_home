@@ -8,12 +8,14 @@
 
 namespace
 {
+    // 按键循环切换时使用的预设状态序列。
     constexpr uint8_t kCurtainAngles[] = {0, 45, 90, 135, 180};
     constexpr const char *kFanModes[] = {"off", "low", "medium", "high"};
 } // namespace
 
 void HomeClientApp::begin()
 {
+    // 优先启动串口，便于早期启动诊断。
     const unsigned long beginStartMs = millis();
     Serial.begin(115200);
 
@@ -21,6 +23,7 @@ void HomeClientApp::begin()
 
     unsigned long phaseStartMs = millis();
     CL_INFO("APP", "init_phase", "phase=output_begin_start");
+    // 先初始化输出，再初始化输入/网络，以便尽早显示启动信息。
     outputManager_.begin();
     CL_INFOF("APP", "init_phase", "phase=output_begin_done dur_ms=%lu", millis() - phaseStartMs);
 
@@ -46,6 +49,7 @@ void HomeClientApp::begin()
 
 void HomeClientApp::loop()
 {
+    // 主循环顺序：维持链路、刷新状态、处理命令、执行渲染。
     wifiManager_.loop();
     pollServerStatus();
     handleInput();
@@ -70,6 +74,7 @@ void HomeClientApp::loop()
 
 void HomeClientApp::pollServerStatus()
 {
+    // 按固定节奏轮询，避免对服务端产生过高压力。
     if (millis() - lastStatusPollMs_ < client_config::kStatusPollIntervalMs)
     {
         return;
@@ -81,6 +86,7 @@ void HomeClientApp::pollServerStatus()
     const unsigned long fetchStartMs = millis();
     if (!apiClient_.fetchStatus(status))
     {
+        // 区分网络断开与服务端搜索中，保证 UI 提示语义明确。
         serverStatus_.online = false;
         if (!wifiManager_.isConnected())
         {
@@ -101,6 +107,7 @@ void HomeClientApp::pollServerStatus()
 
 void HomeClientApp::handleInput()
 {
+    // 清空事件队列，避免快速连按被丢失。
     InputEvent event;
     while (inputManager_.nextEvent(event))
     {
@@ -110,6 +117,7 @@ void HomeClientApp::handleInput()
 
 void HomeClientApp::handleEvent(const InputEvent &event)
 {
+    // 将物理按键动作映射为业务状态切换。
     switch (event.type)
     {
     case InputEventType::Button1:
@@ -131,6 +139,7 @@ void HomeClientApp::handleEvent(const InputEvent &event)
 
 void HomeClientApp::flushPendingControl()
 {
+    // 短冷却时间可避免误触导致的命令突发。
     if (millis() - lastControlSendMs_ < client_config::kControlCooldownMs)
     {
         return;
@@ -138,6 +147,7 @@ void HomeClientApp::flushPendingControl()
 
     if (pendingCurtainCommand_)
     {
+        // 窗帘与风扇命令串行发送，保证意图顺序。
         pendingCurtainCommand_ = false;
         lastControlSendMs_ = millis();
         const String payload = String("{\"device\":\"curtain\",\"angle\":") + desiredCurtainAngle_ + "}";
@@ -162,6 +172,7 @@ void HomeClientApp::flushPendingControl()
 
 ControlResponse HomeClientApp::sendControlPayload(const String &payload)
 {
+    // 统一发送控制负载并记录耗时。
     lastControlSendMs_ = millis();
     const unsigned long startMs = millis();
     ControlResponse response = apiClient_.sendCommand(payload);
@@ -171,6 +182,7 @@ ControlResponse HomeClientApp::sendControlPayload(const String &payload)
 
 void HomeClientApp::advanceCurtainState()
 {
+    // 在 5 档角度环中循环。
     const int nextIndex = (curtainStateIndexFromAngle(static_cast<uint8_t>(desiredCurtainAngle_)) + 1) % 5;
     desiredCurtainAngle_ = kCurtainAngles[nextIndex];
     pendingCurtainCommand_ = true;
@@ -180,6 +192,7 @@ void HomeClientApp::advanceCurtainState()
 
 void HomeClientApp::advanceFanState()
 {
+    // 在 4 档风扇模式环中循环。
     const int nextIndex = (fanStateIndexFromMode(desiredFanMode_, serverStatus_.fanSpeedPercent) + 1) % 4;
     desiredFanMode_ = kFanModes[nextIndex];
     pendingFanCommand_ = true;
@@ -189,6 +202,7 @@ void HomeClientApp::advanceFanState()
 
 void HomeClientApp::syncDesiredStateFromServer()
 {
+    // 有本地下发中的命令时不覆盖，仅在无待发命令时同步。
     if (!pendingCurtainCommand_)
     {
         desiredCurtainAngle_ = serverStatus_.curtainAngle;
@@ -202,6 +216,7 @@ void HomeClientApp::syncDesiredStateFromServer()
 
 int HomeClientApp::curtainStateIndexFromAngle(uint8_t angle) const
 {
+    // 将连续角度映射到最近的预设档位。
     if (angle < 23)
     {
         return 0;
@@ -223,6 +238,7 @@ int HomeClientApp::curtainStateIndexFromAngle(uint8_t angle) const
 
 int HomeClientApp::fanStateIndexFromMode(const String &fanMode, uint8_t fanSpeedPercent) const
 {
+    // 优先使用服务端明确模式，否则按转速推断模式。
     if (fanMode == "low")
     {
         return 1;

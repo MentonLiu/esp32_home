@@ -8,6 +8,7 @@
 
 namespace
 {
+    // 使用 RGB565 调色板，与 TFT_eSPI 色彩空间保持一致。
     constexpr uint16_t kBgTop = TFT_BLACK;
     constexpr uint16_t kBgBottom = 0x18E7;
     constexpr uint16_t kCardFill = 0x4208;
@@ -17,6 +18,7 @@ namespace
     constexpr uint16_t kTextMuted = 0xC638;
     constexpr uint16_t kDotOff = 0x630C;
 
+    // 将月份缩写转换为统一字符串（用于元数据兜底路径）。
     const char *monthFromDateToken(const String &token)
     {
         if (token == "Jan")
@@ -44,6 +46,7 @@ namespace
         return "Dec";
     }
 
+    // 将月份缩写转换为数字月份。
     int monthIndexFromToken(const String &token)
     {
         if (token == "Jan")
@@ -71,6 +74,7 @@ namespace
         return 12;
     }
 
+    // 类 Zeller 公式的星期计算辅助函数。
     int weekdayIndex(int year, int month, int day)
     {
         if (month < 3)
@@ -85,6 +89,7 @@ namespace
         return (h + 5) % 7;
     }
 
+    // 返回大写短星期标签。
     const char *weekdayName(int index)
     {
         static const char *const kWeekdays[] = {"MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"};
@@ -95,6 +100,7 @@ namespace
         return kWeekdays[index];
     }
 
+    // 固定宽度时间/日期值格式化辅助函数。
     String formatTwoDigits(unsigned long value)
     {
         return value < 10 ? String("0") + value : String(value);
@@ -114,6 +120,7 @@ OutputManager::OutputManager()
 
 void OutputManager::begin()
 {
+    // 初始化输出外设并设置默认显示状态。
     const unsigned long startMs = millis();
     CL_INFO("REN", "output_begin", "phase=start");
 
@@ -124,6 +131,7 @@ void OutputManager::begin()
 
     if (client_config::kEnableLcd1602)
     {
+        // I2C LCD 为可选外设，可在编译期开关。
         const unsigned long lcdStartMs = millis();
         CL_INFO("REN", "lcd_init", "phase=start");
         Wire.begin(client_config::kLcdSda, client_config::kLcdScl);
@@ -147,6 +155,7 @@ void OutputManager::render(const ClientWiFiManager &wifiManager,
                            const String &lastMessage,
                            bool serverReachable)
 {
+    // 即使帧被节流，也保持 LED 与时钟状态更新。
     updateRgb(status.smokeLevel);
     syncSystemTime(wifiManager);
 
@@ -155,6 +164,7 @@ void OutputManager::render(const ClientWiFiManager &wifiManager,
 
     if (elapsedMs < client_config::kDisplayRefreshIntervalMs)
     {
+        // 帧率限制，降低 SPI 与 LCD 刷新负载。
         if (client_log::allowPeriodic(lastRenderLogMs_, client_config::kDiagnosticsPeriodicLogMs))
         {
             CL_INFOF("REN", "frame_skip", "elapsed_ms=%lu target_ms=%lu", elapsedMs, client_config::kDisplayRefreshIntervalMs);
@@ -180,6 +190,7 @@ void OutputManager::render(const ClientWiFiManager &wifiManager,
 
 void OutputManager::beginTft()
 {
+    // 初始化 TFT，并将静态布局留到首帧绘制。
     const unsigned long startMs = millis();
     CL_INFO("REN", "tft_init", "phase=start");
 
@@ -197,6 +208,7 @@ void OutputManager::beginTft()
 
 void OutputManager::drawTftStaticLayout()
 {
+    // 静态背景与面板只绘制一次，减少逐帧开销。
     const unsigned long startMs = millis();
     CL_INFO("REN", "tft_static", "phase=start");
 
@@ -232,6 +244,7 @@ void OutputManager::renderTftHtmlPage(const ClientWiFiManager &wifiManager,
                                       const String &lastMessage,
                                       bool serverReachable)
 {
+    // 仅更新动态区域。
     if (!tftReady_)
     {
         return;
@@ -285,6 +298,7 @@ void OutputManager::renderTftHtmlPage(const ClientWiFiManager &wifiManager,
 
 void OutputManager::updateRgb(const String &smokeLevel)
 {
+    // 以红绿灯语义映射烟雾等级。
     bool red = false;
     bool green = false;
     bool blue = false;
@@ -315,6 +329,7 @@ void OutputManager::updateRgb(const String &smokeLevel)
 void OutputManager::renderLcd(const ClientWiFiManager &wifiManager,
                               const ServerStatus &status)
 {
+    // 文本保持紧凑，适配 16x2 字符 LCD。
     if (!lcdReady_)
     {
         return;
@@ -338,6 +353,7 @@ void OutputManager::renderLcd(const ClientWiFiManager &wifiManager,
 
 String OutputManager::fit16(const String &text) const
 {
+    // 裁剪并补齐字符串到一行 LCD 宽度。
     String out = text;
     if (out.length() > 16)
     {
@@ -352,6 +368,7 @@ String OutputManager::fit16(const String &text) const
 
 String OutputManager::buildClockText() const
 {
+    // NTP 时间未就绪时返回占位文本。
     struct tm timeinfo;
     if (!getCurrentLocalTime(timeinfo))
     {
@@ -363,6 +380,7 @@ String OutputManager::buildClockText() const
 
 String OutputManager::buildDateText() const
 {
+    // 生成底部显示的紧凑月/日文本。
     struct tm timeinfo;
     if (!getCurrentLocalTime(timeinfo))
     {
@@ -376,6 +394,7 @@ String OutputManager::buildDateText() const
 
 String OutputManager::buildWeekdayText() const
 {
+    // 生成 TFT 底部使用的短星期标签。
     struct tm timeinfo;
     if (!getCurrentLocalTime(timeinfo))
     {
@@ -388,6 +407,7 @@ String OutputManager::buildWeekdayText() const
 
 String OutputManager::buildConnectionBadge(const ClientWiFiManager &wifiManager) const
 {
+    // OFF：离线，AP：连接兜底热点，STA：连接常规路由。
     if (!wifiManager.isConnected())
     {
         return "OFF";
@@ -401,6 +421,7 @@ String OutputManager::buildConnectionBadge(const ClientWiFiManager &wifiManager)
 
 String OutputManager::buildLiveInfo(const ServerStatus &status) const
 {
+    // 生成与嵌入式界面一致的紧凑状态字符串。
     return String(status.temperatureC, 1) + "C  " +
            String(static_cast<int>(status.humidityPercent)) + "%  " +
            status.fanMode;
@@ -409,6 +430,7 @@ String OutputManager::buildLiveInfo(const ServerStatus &status) const
 String OutputManager::buildFooterText(const ServerStatus &status,
                                       const String &lastMessage) const
 {
+    // 优先显示最近操作消息，否则回退到安全/系统状态。
     String footer = lastMessage;
     if (footer.length() == 0)
     {
@@ -423,6 +445,7 @@ String OutputManager::buildFooterText(const ServerStatus &status,
 
 uint16_t OutputManager::smokeColor565(const String &smokeLevel) const
 {
+    // 烟雾指示点的 RGB565 颜色选择。
     if (smokeLevel == "green")
     {
         return TFT_GREEN;
@@ -440,6 +463,7 @@ uint16_t OutputManager::smokeColor565(const String &smokeLevel) const
 
 void OutputManager::syncSystemTime(const ClientWiFiManager &wifiManager)
 {
+    // 时间同步需要联网，并按配置间隔重试。
     if (!wifiManager.isConnected())
     {
         return;
@@ -447,6 +471,7 @@ void OutputManager::syncSystemTime(const ClientWiFiManager &wifiManager)
 
     if (!timeConfigApplied_)
     {
+        // 仅一次性应用时区和 NTP 服务器配置。
         configTzTime(client_config::kTimeZone,
                      client_config::kNtpServerPrimary,
                      client_config::kNtpServerSecondary);
@@ -491,6 +516,7 @@ void OutputManager::syncSystemTime(const ClientWiFiManager &wifiManager)
 
 bool OutputManager::getCurrentLocalTime(struct tm &timeinfo) const
 {
+    // 过滤明显无效的 RTC/NTP 时间值。
     if (!getLocalTime(&timeinfo, 10))
     {
         return false;

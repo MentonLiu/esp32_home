@@ -11,6 +11,7 @@ HomeClientApp app;
 
 namespace
 {
+  // 将底层 ESP 重启原因枚举转换为简短日志标签。
   const char *resetReasonToText(esp_reset_reason_t reason)
   {
     switch (reason)
@@ -43,16 +44,19 @@ namespace
 
 void setup()
 {
+  // 先记录启动基准时间，便于日志输出运行时长。
   client_log::markBootStart();
   CL_INFO("BOOT", "setup_begin", "phase=entry");
   const esp_reset_reason_t reason = esp_reset_reason();
   CL_INFOF("BOOT", "reset_reason", "reason=%s code=%d", resetReasonToText(reason), static_cast<int>(reason));
 
+  // 初始化完整应用栈。
   app.begin();
   CL_INFO("BOOT", "setup_done", "phase=app_begin_complete");
 }
 
 void loop()
 {
+  // 将周期行为交给应用调度器处理。
   app.loop();
 }

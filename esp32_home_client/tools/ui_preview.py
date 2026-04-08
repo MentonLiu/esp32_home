@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""OutputManager preview server.
+"""OutputManager 预览服务器。
 
-This preview is derived from src/OutputManager.cpp (renderTftHtmlPage) and
-lets you tweak runtime values via query parameters.
+该预览页面对应 src/OutputManager.cpp（renderTftHtmlPage）中的布局，
+可通过 URL 查询参数快速调整运行时状态。
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from pathlib import Path
 
 def pick_port(host: str, preferred: int = 8765, max_tries: int = 20) -> int:
     """Find an available TCP port near the preferred one."""
+    # 在有限端口范围内查找，避免无界扫描。
     for port in range(preferred, preferred + max_tries):
         with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -31,72 +32,77 @@ def pick_port(host: str, preferred: int = 8765, max_tries: int = 20) -> int:
 
 
 def smoke_dot_color(smoke_level: str) -> str:
-        level = smoke_level.strip().lower()
-        if level == "green":
-                return "#07e0"
-        if level == "blue":
-                return "#07ff"
-        if level == "yellow":
-                return "#fd20"
-        return "#f800"
+    # 颜色映射保持与嵌入式 RGB565 调色板一致。
+    level = smoke_level.strip().lower()
+    if level == "green":
+        return "#07e0"
+    if level == "blue":
+        return "#07ff"
+    if level == "yellow":
+        return "#fd20"
+    return "#f800"
 
 
 def build_badge(wifi_connected: bool, wifi_is_server_ap: bool) -> str:
-        if not wifi_connected:
-                return "OFF"
-        if wifi_is_server_ap:
-                return "AP"
-        return "STA"
+    # 徽标语义与 OutputManager::buildConnectionBadge 保持一致。
+    if not wifi_connected:
+        return "OFF"
+    if wifi_is_server_ap:
+        return "AP"
+    return "STA"
 
 
 def bool_param(value: str, default: bool = False) -> bool:
-        if value is None:
-                return default
-        return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+    # 支持多种真值别名，便于快速调参。
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
 def build_preview_html(params: dict[str, str]) -> str:
-        now = dt.datetime.now()
+    # 默认参数模拟“联网正常”的运行时快照。
+    now = dt.datetime.now()
 
-        wifi_connected = bool_param(params.get("wifi"), True)
-        wifi_is_server_ap = bool_param(params.get("ap"), True)
-        server_reachable = bool_param(params.get("server"), True)
-        flame_detected = bool_param(params.get("flame"), False)
+    wifi_connected = bool_param(params.get("wifi"), True)
+    wifi_is_server_ap = bool_param(params.get("ap"), True)
+    server_reachable = bool_param(params.get("server"), True)
+    flame_detected = bool_param(params.get("flame"), False)
 
-        mode = params.get("mode", "cloud")
-        fan_mode = params.get("fan", "medium")
-        smoke = params.get("smoke", "green")
-        temp = params.get("temp", "25.0")
-        hum = params.get("hum", "55")
-        msg = params.get("msg", "")
+    mode = params.get("mode", "cloud")
+    fan_mode = params.get("fan", "medium")
+    smoke = params.get("smoke", "green")
+    temp = params.get("temp", "25.0")
+    hum = params.get("hum", "55")
+    msg = params.get("msg", "")
 
-        if not msg:
-                msg = "flame_detected" if flame_detected else "screen_ready"
-        msg = msg[:24]
+    if not msg:
+        msg = "flame_detected" if flame_detected else "screen_ready"
+    msg = msg[:24]
 
-        badge = build_badge(wifi_connected, wifi_is_server_ap)
-        clock_text = params.get("clock", now.strftime("%H:%M"))
-        date_text = params.get("date", f"{now.strftime('%b')} {now.day}")
-        weekday_text = params.get("week", now.strftime("%a").upper())
-        live_info = f"{temp}C  {hum}%  {fan_mode}"
+    badge = build_badge(wifi_connected, wifi_is_server_ap)
+    clock_text = params.get("clock", now.strftime("%H:%M"))
+    date_text = params.get("date", f"{now.strftime('%b')} {now.day}")
+    weekday_text = params.get("week", now.strftime("%a").upper())
+    live_info = f"{temp}C  {hum}%  {fan_mode}"
 
-        wifi_dot = "#07ff" if wifi_connected else "#630c"
-        server_dot = "#07e0" if server_reachable else "#630c"
-        smoke_dot = smoke_dot_color(smoke)
+    wifi_dot = "#07ff" if wifi_connected else "#630c"
+    server_dot = "#07e0" if server_reachable else "#630c"
+    smoke_dot = smoke_dot_color(smoke)
 
-        state = {
-                "mode": mode,
-                "fanMode": fan_mode,
-                "smokeLevel": smoke,
-                "wifiConnected": wifi_connected,
-                "wifiIsServerAp": wifi_is_server_ap,
-                "serverReachable": server_reachable,
-                "flameDetected": flame_detected,
-                "footer": msg,
-        }
-        state_json = json.dumps(state, ensure_ascii=True)
+    # 暴露计算后的状态块，方便可视化调试。
+    state = {
+        "mode": mode,
+        "fanMode": fan_mode,
+        "smokeLevel": smoke,
+        "wifiConnected": wifi_connected,
+        "wifiIsServerAp": wifi_is_server_ap,
+        "serverReachable": server_reachable,
+        "flameDetected": flame_detected,
+        "footer": msg,
+    }
+    state_json = json.dumps(state, ensure_ascii=True)
 
-        return f"""<!DOCTYPE html>
+    return f"""<!DOCTYPE html>
 <html lang=\"zh-CN\">
 <head>
     <meta charset=\"UTF-8\" />
@@ -190,25 +196,27 @@ def build_preview_html(params: dict[str, str]) -> str:
 
 
 class PreviewRequestHandler(http.server.SimpleHTTPRequestHandler):
-        def __init__(self, *args, project_root: Path, **kwargs):
-                self._project_root = project_root
-                super().__init__(*args, directory=str(project_root), **kwargs)
+    def __init__(self, *args, project_root: Path, **kwargs):
+    self._project_root = project_root
+    super().__init__(*args, directory=str(project_root), **kwargs)
 
-        def do_GET(self) -> None:  # noqa: N802
-                parsed = urllib.parse.urlparse(self.path)
-                if parsed.path in {"/", "/preview"}:
-                        params = {k: v[-1] for k, v in urllib.parse.parse_qs(parsed.query).items()}
-                        content = build_preview_html(params).encode("utf-8")
-                        self.send_response(200)
-                        self.send_header("Content-Type", "text/html; charset=utf-8")
-                        self.send_header("Content-Length", str(len(content)))
-                        self.end_headers()
-                        self.wfile.write(content)
-                        return
-                super().do_GET()
+    def do_GET(self) -> None:  # noqa: N802
+    # 在 / 与 /preview 返回动态预览，其余路径回退到静态文件。
+    parsed = urllib.parse.urlparse(self.path)
+    if parsed.path in {"/", "/preview"}:
+        params = {k: v[-1] for k, v in urllib.parse.parse_qs(parsed.query).items()}
+        content = build_preview_html(params).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(content)))
+        self.end_headers()
+        self.wfile.write(content)
+        return
+    super().do_GET()
 
 
 def main() -> int:
+    # 使用仓库根目录，确保历史静态资源仍可访问。
     project_root = Path(__file__).resolve().parents[1]
     host = "127.0.0.1"
     port = pick_port(host)
@@ -219,6 +227,7 @@ def main() -> int:
         **kwargs,
     )
 
+    # 单进程本地开发服务器，用于界面快速试验。
     with socketserver.TCPServer((host, port), handler) as httpd:
         url = f"http://{host}:{port}/preview"
 
@@ -230,7 +239,7 @@ def main() -> int:
         print("Press Ctrl+C to stop")
         print("=" * 52)
 
-        # Delay a bit to make sure server is ready before browser tries to load it.
+        # 略微延迟后再打开浏览器，确保服务已就绪。
         threading.Timer(0.4, lambda: webbrowser.open(url)).start()
 
         try:
@@ -239,7 +248,7 @@ def main() -> int:
             print("\nUI preview server stopped")
             return 0
 
-    # Keep explicit return for static analyzers.
+    # 保留显式返回，便于静态分析工具识别。
     return 0
 
 

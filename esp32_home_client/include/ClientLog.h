@@ -1,6 +1,8 @@
 #ifndef CLIENT_LOG_H
 #define CLIENT_LOG_H
 
+// 轻量级日志辅助函数与宏，供客户端各模块统一使用。
+
 #include <Arduino.h>
 
 #include <stdarg.h>
@@ -10,27 +12,32 @@
 
 namespace client_log
 {
+    // 保存启动时间戳，用于输出运行时长日志。
     inline unsigned long &bootMarkMs()
     {
         static unsigned long value = 0;
         return value;
     }
 
+    // 标记 setup 启动时刻。
     inline void markBootStart()
     {
         bootMarkMs() = millis();
     }
 
+    // 返回距启动标记点的毫秒数。
     inline unsigned long sinceBootMs()
     {
         return millis() - bootMarkMs();
     }
 
+    // 根据配置判断当前日志级别是否启用。
     inline bool isEnabled(uint8_t level)
     {
         return client_config::kEnableDiagnosticsLog && level <= client_config::kDiagnosticsLogLevel;
     }
 
+    // 通过间隔节流周期性日志或动作。
     inline bool allowPeriodic(unsigned long &lastMs, unsigned long intervalMs)
     {
         const unsigned long now = millis();
@@ -42,6 +49,7 @@ namespace client_log
         return true;
     }
 
+    // 检测布尔状态变化，便于输出状态切换日志。
     inline bool changedBool(bool value, bool &lastValue)
     {
         if (value == lastValue)
@@ -52,6 +60,7 @@ namespace client_log
         return true;
     }
 
+    // 输出结构化单行日志。
     inline void logLine(const char *level,
                         const char *module,
                         const char *event,
@@ -66,6 +75,7 @@ namespace client_log
         Serial.println();
     }
 
+    // 先格式化详情字符串，再转发到 logLine。
     inline void logFormat(const char *level,
                           const char *module,
                           const char *event,
@@ -85,8 +95,9 @@ namespace client_log
 
         logLine(level, module, event, details);
     }
-} // namespace client_log
+} // 日志命名空间
 
+// 带级别判断的结构化日志宏。
 #define CL_ERROR(module, event, details)                      \
     do                                                        \
     {                                                         \

@@ -8,11 +8,13 @@
 
 namespace
 {
+    // 机械按键硬件消抖时间窗。
     constexpr unsigned long kDebounceMs = 35UL;
 } // namespace
 
 void InputManager::begin()
 {
+    // 按键为低电平有效，使用内部上拉。
     pinMode(client_config::kButton1Pin, INPUT_PULLUP);
     pinMode(client_config::kButton2Pin, INPUT_PULLUP);
     pinMode(client_config::kButton3Pin, INPUT_PULLUP);
@@ -22,6 +24,7 @@ void InputManager::begin()
 
 bool InputManager::nextEvent(InputEvent &event)
 {
+    // 每次调用最多返回一个事件，便于控制节奏。
     event = {};
 
     if (readButtonPressed(client_config::kButton1Pin,
@@ -66,6 +69,7 @@ bool InputManager::nextEvent(InputEvent &event)
 
 bool InputManager::readButtonPressed(uint8_t pin, bool &stablePressed, bool &lastRawState, unsigned long &lastChangeMs)
 {
+    // 低电平表示按下。
     const bool rawPressed = digitalRead(pin) == LOW;
     if (rawPressed != lastRawState)
     {
@@ -73,6 +77,7 @@ bool InputManager::readButtonPressed(uint8_t pin, bool &stablePressed, bool &las
         lastChangeMs = millis();
     }
 
+    // 等待原始电平稳定超过消抖时间窗。
     if (millis() - lastChangeMs < kDebounceMs)
     {
         return false;
@@ -80,6 +85,7 @@ bool InputManager::readButtonPressed(uint8_t pin, bool &stablePressed, bool &las
 
     if (rawPressed != stablePressed)
     {
+        // 仅在按下沿（true）时产生事件。
         stablePressed = rawPressed;
         return stablePressed;
     }

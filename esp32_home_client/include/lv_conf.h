@@ -3,7 +3,8 @@
 
 #include <stdint.h>
 
-// Keep LVGL on RGB565 to match the current ESP32 TFT pipeline.
+// 本项目最小化 LVGL 编译期配置。
+// 保持 LVGL 为 RGB565，以匹配当前 ESP32 TFT 渲染链路。
 #define LV_COLOR_DEPTH 16
 
 #endif

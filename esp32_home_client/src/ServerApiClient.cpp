@@ -15,6 +15,7 @@ ServerApiClient::ServerApiClient(ClientWiFiManager &wifiManager) : wifiManager_(
 
 void ServerApiClient::begin()
 {
+    // 每次启动先清空地址缓存状态。
     CL_INFO("API", "begin", "phase=start");
     clearServerCache();
     CL_INFO("API", "begin", "phase=done");
@@ -22,6 +23,7 @@ void ServerApiClient::begin()
 
 bool ServerApiClient::fetchStatus(ServerStatus &status)
 {
+    // 状态拉取流程：链路检查 -> 地址发现 -> HTTP -> 解析。
     const unsigned long startMs = millis();
     if (!wifiManager_.isConnected())
     {
@@ -32,6 +34,7 @@ bool ServerApiClient::fetchStatus(ServerStatus &status)
 
     if (!ensureServerResolved())
     {
+        // 地址发现可能短暂失败，由调用方按节奏重试。
         serverReachable_ = false;
         CL_WARN("API", "fetch_fail", "reason=server_unresolved");
         return false;
@@ -51,6 +54,7 @@ bool ServerApiClient::fetchStatus(ServerStatus &status)
 
 ControlResponse ServerApiClient::sendCommand(const String &jsonPayload)
 {
+    // 控制命令与状态轮询共用同一已解析基础 URL。
     ControlResponse response;
     const unsigned long startMs = millis();
     if (!wifiManager_.isConnected() || !ensureServerResolved())
@@ -85,6 +89,7 @@ ControlResponse ServerApiClient::sendCommand(const String &jsonPayload)
     JsonDocument doc;
     if (deserializeJson(doc, payload))
     {
+        // 若响应 JSON 异常，则回退到 HTTP 层成功判定。
         response.ok = response.httpCode >= 200 && response.httpCode < 300;
         response.message = response.ok ? "ok" : "invalid_json_response";
         CL_WARNF("API", "control_parse_fallback", "code=%d ok=%d", response.httpCode, response.ok ? 1 : 0);
@@ -112,6 +117,7 @@ String ServerApiClient::serverBaseUrl() const
 
 bool ServerApiClient::ensureMdnsReady()
 {
+    // 仅在 Wi-Fi 在线时 mDNS 才有意义。
     if (!wifiManager_.isConnected())
     {
         mdnsReady_ = false;
@@ -130,6 +136,7 @@ bool ServerApiClient::ensureMdnsReady()
 
 bool ServerApiClient::ensureServerResolved()
 {
+    // 尽可能复用已缓存地址。
     if (!wifiManager_.isConnected())
     {
         clearServerCache();
@@ -156,10 +163,12 @@ bool ServerApiClient::ensureServerResolved()
 
     if (wifiManager_.isConnectedToServerAp())
     {
+        // AP 模式下服务端 IP 固定，无需 mDNS 查询。
         CL_INFOF("API", "discover_try", "mode=ap ip=%s", client_config::kServerApIp);
         return probeAndCache(client_config::kServerApIp);
     }
 
+    // 云端/STA 模式：优先通过 mDNS 解析。
     ensureMdnsReady();
     const unsigned long mdnsStartMs = millis();
     const IPAddress mdnsIp = MDNS.queryHost(client_config::kServerMdnsName, 1000);
@@ -179,6 +188,7 @@ bool ServerApiClient::ensureServerResolved()
 
 bool ServerApiClient::probeAndCache(const String &host)
 {
+    // 仅当 /api/status 探测成功时才接受候选主机。
     if (host.length() == 0)
     {
         return false;
@@ -202,6 +212,7 @@ bool ServerApiClient::probeAndCache(const String &host)
 
 bool ServerApiClient::httpGetStatus(const String &baseUrl, ServerStatus &status)
 {
+    // 短超时阻塞 GET，兼顾响应性与稳定性。
     const unsigned long startMs = millis();
     HTTPClient http;
     http.setTimeout(client_config::kHttpTimeoutMs);
@@ -234,6 +245,7 @@ bool ServerApiClient::httpGetStatus(const String &baseUrl, ServerStatus &status)
 
 bool ServerApiClient::parseStatusPayload(const String &payload, const String &baseUrl, ServerStatus &status) const
 {
+    // 同时兼容平铺字段与嵌套字段结构。
     JsonDocument doc;
     if (deserializeJson(doc, payload))
     {
@@ -266,6 +278,7 @@ String ServerApiClient::buildBaseUrl(const String &host) const
 
 void ServerApiClient::clearServerCache()
 {
+    // 连接或协议异常后清空缓存，强制重新发现。
     const bool hadCache = cachedBaseUrl_.length() > 0 || cachedHost_.length() > 0 || serverReachable_;
     cachedBaseUrl_ = "";
     cachedHost_ = "";

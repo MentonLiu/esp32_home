@@ -10,6 +10,7 @@
 
 void ClientWiFiManager::begin()
 {
+    // 仅使用 STA 模式；客户端不对外提供 AP。
     CL_INFO("WIFI", "begin", "mode=sta");
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true);
@@ -18,6 +19,7 @@ void ClientWiFiManager::begin()
 
 void ClientWiFiManager::loop()
 {
+    // 仅在连通性发生变化时输出日志，便于诊断。
     const bool connected = isConnected();
     static bool lastConnectedState = false;
     static bool stateInitialized = false;
@@ -34,6 +36,7 @@ void ClientWiFiManager::loop()
 
     if (connected)
     {
+        // 链路健康时无需额外处理。
         return;
     }
 
@@ -48,6 +51,7 @@ void ClientWiFiManager::loop()
         return;
     }
 
+    // 达到重试间隔后再重连，减少功耗与射频抖动。
     CL_INFO("WIFI", "retry_now", "reason=disconnected");
     connectKnownNetworks();
 }
@@ -74,6 +78,7 @@ String ClientWiFiManager::localIpString() const
 
 bool ClientWiFiManager::connectKnownNetworks()
 {
+    // 先连主路由，再连服务端热点兜底。
     lastAttemptMs_ = millis();
     CL_INFO("WIFI", "connect_known", "phase=start");
 
@@ -90,11 +95,13 @@ bool ClientWiFiManager::connectKnownNetworks()
 
 bool ClientWiFiManager::connectTo(const char *ssid, const char *password)
 {
+    // 忽略配置中无效的 SSID。
     if (ssid == nullptr || strlen(ssid) == 0)
     {
         return false;
     }
 
+    // 强制干净重连，避免旧状态影响后续重试。
     WiFi.disconnect(false, true);
     delay(100);
     CL_INFOF("WIFI", "connect_try", "ssid=%s timeout_ms=%lu", ssid, client_config::kWifiConnectTimeoutMs);
