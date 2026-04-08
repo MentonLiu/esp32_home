@@ -4,9 +4,8 @@
 #ifndef OUTPUT_MANAGER_H
 #define OUTPUT_MANAGER_H
 
+#include <Adafruit_SSD1306.h>
 #include <Arduino.h>
-#include <LiquidCrystal_I2C.h>
-#include <TFT_eSPI.h>
 #include <Wire.h>
 #include <time.h>
 
@@ -19,7 +18,7 @@ class OutputManager
 public:
     OutputManager();
 
-    // 初始化 RGB、LCD 与 TFT 硬件。
+    // 初始化 RGB 与双 OLED 硬件。
     void begin();
     // 渲染当前状态的一帧画面。
     void render(const ClientWiFiManager &wifiManager,
@@ -28,39 +27,36 @@ public:
                 bool serverReachable);
 
 private:
-    // 初始化 TFT 屏幕与背光。
-    void beginTft();
-    // 一次性绘制静态背景和卡片。
-    void drawTftStaticLayout();
-    // 每帧刷新 TFT 动态区域。
-    void renderTftHtmlPage(const ClientWiFiManager &wifiManager,
-                           const ServerStatus &status,
-                           const String &lastMessage,
-                           bool serverReachable);
+    // 初始化双 OLED，并分别挂到独立 I2C 总线。
+    void beginOleds();
+    // 左侧 OLED 显示环境传感器数据。
+    void renderSensorOled(const ServerStatus &status);
+    // 右侧 OLED 显示控制状态、网络与时间。
+    void renderStatusOled(const ClientWiFiManager &wifiManager,
+                          const ServerStatus &status,
+                          const String &lastMessage,
+                          bool serverReachable);
     // 将烟雾等级映射到 RGB 指示灯。
     void updateRgb(const String &smokeLevel);
-    // 在 LCD1602 上显示精简状态。
-    void renderLcd(const ClientWiFiManager &wifiManager,
-                   const ServerStatus &status);
     // 配置并重试 NTP 时间同步。
     void syncSystemTime(const ClientWiFiManager &wifiManager);
     // 获取校验后的本地时间快照。
     bool getCurrentLocalTime(struct tm &timeinfo) const;
-    String fit16(const String &text) const;
     String buildClockText() const;
     String buildDateText() const;
     String buildWeekdayText() const;
     String buildConnectionBadge(const ClientWiFiManager &wifiManager) const;
-    String buildLiveInfo(const ServerStatus &status) const;
     String buildFooterText(const ServerStatus &status,
                            const String &lastMessage) const;
-    uint16_t smokeColor565(const String &smokeLevel) const;
+    String buildSmokeLabel(const String &smokeLevel) const;
+    String fitLine(const String &text, size_t maxLength) const;
 
-    LiquidCrystal_I2C lcd_;
-    TFT_eSPI tft_;
-    bool lcdReady_ = false;
-    bool tftReady_ = false;
-    bool tftStaticPainted_ = false;
+    TwoWire sensorOledWire_;
+    TwoWire statusOledWire_;
+    Adafruit_SSD1306 sensorOled_;
+    Adafruit_SSD1306 statusOled_;
+    bool sensorOledReady_ = false;
+    bool statusOledReady_ = false;
     bool firstFrameLogged_ = false;
     bool timeConfigApplied_ = false;
     bool timeSynced_ = false;

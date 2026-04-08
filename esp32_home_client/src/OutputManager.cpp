@@ -8,104 +8,6 @@
 
 namespace
 {
-    // 使用 RGB565 调色板，与 TFT_eSPI 色彩空间保持一致。
-    constexpr uint16_t kBgTop = TFT_BLACK;
-    constexpr uint16_t kBgBottom = 0x18E7;
-    constexpr uint16_t kCardFill = 0x4208;
-    constexpr uint16_t kCardBorder = 0x94B2;
-    constexpr uint16_t kPanelFill = 0x2969;
-    constexpr uint16_t kTextPrimary = TFT_WHITE;
-    constexpr uint16_t kTextMuted = 0xC638;
-    constexpr uint16_t kDotOff = 0x630C;
-
-    // 将月份缩写转换为统一字符串（用于元数据兜底路径）。
-    const char *monthFromDateToken(const String &token)
-    {
-        if (token == "Jan")
-            return "Jan";
-        if (token == "Feb")
-            return "Feb";
-        if (token == "Mar")
-            return "Mar";
-        if (token == "Apr")
-            return "Apr";
-        if (token == "May")
-            return "May";
-        if (token == "Jun")
-            return "Jun";
-        if (token == "Jul")
-            return "Jul";
-        if (token == "Aug")
-            return "Aug";
-        if (token == "Sep")
-            return "Sep";
-        if (token == "Oct")
-            return "Oct";
-        if (token == "Nov")
-            return "Nov";
-        return "Dec";
-    }
-
-    // 将月份缩写转换为数字月份。
-    int monthIndexFromToken(const String &token)
-    {
-        if (token == "Jan")
-            return 1;
-        if (token == "Feb")
-            return 2;
-        if (token == "Mar")
-            return 3;
-        if (token == "Apr")
-            return 4;
-        if (token == "May")
-            return 5;
-        if (token == "Jun")
-            return 6;
-        if (token == "Jul")
-            return 7;
-        if (token == "Aug")
-            return 8;
-        if (token == "Sep")
-            return 9;
-        if (token == "Oct")
-            return 10;
-        if (token == "Nov")
-            return 11;
-        return 12;
-    }
-
-    // 类 Zeller 公式的星期计算辅助函数。
-    int weekdayIndex(int year, int month, int day)
-    {
-        if (month < 3)
-        {
-            month += 12;
-            year -= 1;
-        }
-
-        const int k = year % 100;
-        const int j = year / 100;
-        const int h = (day + (13 * (month + 1)) / 5 + k + k / 4 + j / 4 + 5 * j) % 7;
-        return (h + 5) % 7;
-    }
-
-    // 返回大写短星期标签。
-    const char *weekdayName(int index)
-    {
-        static const char *const kWeekdays[] = {"MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"};
-        if (index < 0 || index > 6)
-        {
-            return "DAY";
-        }
-        return kWeekdays[index];
-    }
-
-    // 固定宽度时间/日期值格式化辅助函数。
-    String formatTwoDigits(unsigned long value)
-    {
-        return value < 10 ? String("0") + value : String(value);
-    }
-
     String formatTwoDigits(int value)
     {
         return value < 10 ? String("0") + value : String(value);
@@ -113,8 +15,16 @@ namespace
 } // namespace
 
 OutputManager::OutputManager()
-    : lcd_(client_config::kLcdAddress, client_config::kLcdColumns, client_config::kLcdRows),
-      tft_()
+    : sensorOledWire_(0),
+      statusOledWire_(1),
+      sensorOled_(client_config::kOledWidth,
+                  client_config::kOledHeight,
+                  &sensorOledWire_,
+                  client_config::kOledResetPin),
+      statusOled_(client_config::kOledWidth,
+                  client_config::kOledHeight,
+                  &statusOledWire_,
+                  client_config::kOledResetPin)
 {
 }
 
@@ -129,23 +39,7 @@ void OutputManager::begin()
     pinMode(client_config::kRgbBluePin, OUTPUT);
     updateRgb("green");
 
-    if (client_config::kEnableLcd1602)
-    {
-        // I2C LCD 为可选外设，可在编译期开关。
-        const unsigned long lcdStartMs = millis();
-        CL_INFO("REN", "lcd_init", "phase=start");
-        Wire.begin(client_config::kLcdSda, client_config::kLcdScl);
-        lcd_.init();
-        lcd_.backlight();
-        lcd_.clear();
-        lcdReady_ = true;
-        CL_INFOF("REN", "lcd_init", "phase=done dur_ms=%lu", millis() - lcdStartMs);
-    }
-
-    if (client_config::kEnableTft)
-    {
-        beginTft();
-    }
+    beginOleds();
 
     CL_INFOF("REN", "output_begin", "phase=done dur_ms=%lu", millis() - startMs);
 }
@@ -161,10 +55,8 @@ void OutputManager::render(const ClientWiFiManager &wifiManager,
 
     const unsigned long nowMs = millis();
     const unsigned long elapsedMs = nowMs - lastRenderMs_;
-
     if (elapsedMs < client_config::kDisplayRefreshIntervalMs)
     {
-        // 帧率限制，降低 SPI 与 LCD 刷新负载。
         if (client_log::allowPeriodic(lastRenderLogMs_, client_config::kDiagnosticsPeriodicLogMs))
         {
             CL_INFOF("REN", "frame_skip", "elapsed_ms=%lu target_ms=%lu", elapsedMs, client_config::kDisplayRefreshIntervalMs);
@@ -173,8 +65,8 @@ void OutputManager::render(const ClientWiFiManager &wifiManager,
     }
     lastRenderMs_ = nowMs;
 
-    renderTftHtmlPage(wifiManager, status, lastMessage, serverReachable);
-    renderLcd(wifiManager, status);
+    renderSensorOled(status);
+    renderStatusOled(wifiManager, status, lastMessage, serverReachable);
 
     if (client_log::allowPeriodic(lastRenderLogMs_, client_config::kDiagnosticsPeriodicLogMs))
     {
@@ -188,112 +80,133 @@ void OutputManager::render(const ClientWiFiManager &wifiManager,
     }
 }
 
-void OutputManager::beginTft()
+void OutputManager::beginOleds()
 {
-    // 初始化 TFT，并将静态布局留到首帧绘制。
-    const unsigned long startMs = millis();
-    CL_INFO("REN", "tft_init", "phase=start");
-
-    pinMode(client_config::kTftBacklight, OUTPUT);
-    digitalWrite(client_config::kTftBacklight, HIGH);
-
-    tft_.init();
-    tft_.setRotation(0);
-    tft_.fillScreen(TFT_BLACK);
-    tftStaticPainted_ = false;
-    tftReady_ = true;
-    firstFrameLogged_ = false;
-    CL_INFOF("REN", "tft_init", "phase=done dur_ms=%lu", millis() - startMs);
-}
-
-void OutputManager::drawTftStaticLayout()
-{
-    // 静态背景与面板只绘制一次，减少逐帧开销。
-    const unsigned long startMs = millis();
-    CL_INFO("REN", "tft_static", "phase=start");
-
-    for (int y = 0; y < client_config::kTftHeight; ++y)
+    if (client_config::kEnableSensorOled)
     {
-        const uint8_t mix = static_cast<uint8_t>((y * 255) / client_config::kTftHeight);
-        tft_.drawFastHLine(0, y, client_config::kTftWidth, tft_.alphaBlend(mix, kBgBottom, kBgTop));
+        const unsigned long sensorStartMs = millis();
+        CL_INFO("REN", "sensor_oled_init", "phase=start");
+
+        sensorOledWire_.begin(client_config::kSensorOledSda, client_config::kSensorOledScl);
+        sensorOledReady_ = sensorOled_.begin(SSD1306_SWITCHCAPVCC, client_config::kSensorOledAddress);
+        if (sensorOledReady_)
+        {
+            sensorOled_.clearDisplay();
+            sensorOled_.setTextColor(SSD1306_WHITE);
+            sensorOled_.setTextWrap(false);
+            sensorOled_.display();
+            CL_INFOF("REN", "sensor_oled_init", "phase=done dur_ms=%lu", millis() - sensorStartMs);
+        }
+        else
+        {
+            CL_WARN("REN", "sensor_oled_init", "phase=fail");
+        }
     }
 
-    tft_.fillRoundRect(10, 10, 220, 300, 15, kCardFill);
-    tft_.drawRoundRect(10, 10, 220, 300, 15, kCardBorder);
+    if (client_config::kEnableStatusOled)
+    {
+        const unsigned long statusStartMs = millis();
+        CL_INFO("REN", "status_oled_init", "phase=start");
 
-    tft_.setTextColor(kTextMuted, kCardFill);
-    tft_.setTextFont(2);
-    tft_.drawString("ESP32-HOME", 25, 27);
-
-    tft_.setTextColor(kTextPrimary, kCardFill);
-    tft_.setTextFont(2);
-    tft_.drawCentreString("MADE IN 600", 120, 292, 2);
-
-    tft_.fillRoundRect(24, 58, 130, 28, 8, kPanelFill);
-    tft_.fillRoundRect(24, 186, 166, 50, 10, kPanelFill);
-    tft_.setTextColor(kTextMuted, kPanelFill);
-    tft_.setTextFont(2);
-    tft_.drawString("TEMP / HUM / FAN", 32, 196);
-    tft_.fillRoundRect(24, 242, 166, 28, 8, kPanelFill);
-
-    CL_INFOF("REN", "tft_static", "phase=done dur_ms=%lu", millis() - startMs);
+        statusOledWire_.begin(client_config::kStatusOledSda, client_config::kStatusOledScl);
+        statusOledReady_ = statusOled_.begin(SSD1306_SWITCHCAPVCC, client_config::kStatusOledAddress);
+        if (statusOledReady_)
+        {
+            statusOled_.clearDisplay();
+            statusOled_.setTextColor(SSD1306_WHITE);
+            statusOled_.setTextWrap(false);
+            statusOled_.display();
+            CL_INFOF("REN", "status_oled_init", "phase=done dur_ms=%lu", millis() - statusStartMs);
+        }
+        else
+        {
+            CL_WARN("REN", "status_oled_init", "phase=fail");
+        }
+    }
 }
 
-void OutputManager::renderTftHtmlPage(const ClientWiFiManager &wifiManager,
-                                      const ServerStatus &status,
-                                      const String &lastMessage,
-                                      bool serverReachable)
+void OutputManager::renderSensorOled(const ServerStatus &status)
 {
-    // 仅更新动态区域。
-    if (!tftReady_)
+    if (!sensorOledReady_)
     {
         return;
     }
 
-    if (!tftStaticPainted_)
+    sensorOled_.clearDisplay();
+
+    sensorOled_.setTextSize(1);
+    sensorOled_.setCursor(0, 0);
+    sensorOled_.print("SENSOR DATA");
+    sensorOled_.drawLine(0, 10, 127, 10, SSD1306_WHITE);
+
+    sensorOled_.setTextSize(2);
+    sensorOled_.setCursor(0, 16);
+    sensorOled_.print(String(status.temperatureC, 1));
+    sensorOled_.print("C");
+
+    sensorOled_.setTextSize(1);
+    sensorOled_.setCursor(0, 38);
+    sensorOled_.print("HUM : ");
+    sensorOled_.print(static_cast<int>(status.humidityPercent));
+    sensorOled_.print("%");
+
+    sensorOled_.setCursor(0, 48);
+    sensorOled_.print("LIGHT: ");
+    sensorOled_.print(status.lightPercent);
+    sensorOled_.print("%");
+
+    sensorOled_.setCursor(0, 58);
+    sensorOled_.print("MQ2:");
+    sensorOled_.print(status.mq2Percent);
+    sensorOled_.print("% ");
+    sensorOled_.print(status.flameDetected ? "FLAME" : "SAFE");
+
+    sensorOled_.display();
+}
+
+void OutputManager::renderStatusOled(const ClientWiFiManager &wifiManager,
+                                     const ServerStatus &status,
+                                     const String &lastMessage,
+                                     bool serverReachable)
+{
+    if (!statusOledReady_)
     {
-        drawTftStaticLayout();
-        tftStaticPainted_ = true;
+        return;
     }
 
-    tft_.fillRect(174, 23, 48, 22, kCardFill);
-    tft_.setTextColor(kTextPrimary, kCardFill);
-    tft_.setTextFont(4);
-    tft_.drawString(buildConnectionBadge(wifiManager), 186, 27);
+    statusOled_.clearDisplay();
 
-    tft_.fillRect(25, 104, 140, 54, kCardFill);
-    tft_.setTextFont(7);
-    tft_.drawString(buildClockText(), 25, 108);
+    statusOled_.setTextSize(1);
+    statusOled_.setCursor(0, 0);
+    statusOled_.print("CTRL ");
+    statusOled_.print(buildConnectionBadge(wifiManager));
+    statusOled_.print(serverReachable ? " SRV" : " NOSRV");
 
-    tft_.fillRect(24, 256, 170, 18, kCardFill);
-    tft_.setTextFont(2);
-    tft_.setTextColor(kTextMuted, kCardFill);
-    tft_.drawString(buildDateText(), 28, 257);
-    tft_.drawString(buildWeekdayText(), 120, 257);
+    statusOled_.drawLine(0, 10, 127, 10, SSD1306_WHITE);
 
-    const uint16_t wifiDot = wifiManager.isConnected() ? TFT_CYAN : kDotOff;
-    const uint16_t serverDot = serverReachable ? TFT_GREEN : kDotOff;
-    const uint16_t smokeDot = smokeColor565(status.smokeLevel);
-    tft_.fillCircle(207, 205, 8, smokeDot);
-    tft_.fillCircle(207, 234, 8, serverDot);
-    tft_.fillCircle(207, 263, 8, wifiDot);
+    statusOled_.setTextSize(2);
+    statusOled_.setCursor(0, 16);
+    statusOled_.print(buildClockText());
 
-    tft_.fillRoundRect(24, 58, 130, 28, 8, kPanelFill);
-    tft_.setTextColor(kTextPrimary, kPanelFill);
-    tft_.setTextFont(2);
-    tft_.drawString(status.mode.length() > 0 ? status.mode : "offline", 32, 66);
+    statusOled_.setTextSize(1);
+    statusOled_.setCursor(0, 38);
+    statusOled_.print(buildDateText());
+    statusOled_.print(" ");
+    statusOled_.print(buildWeekdayText());
 
-    tft_.fillRoundRect(24, 186, 166, 50, 10, kPanelFill);
-    tft_.setTextColor(kTextMuted, kPanelFill);
-    tft_.drawString("TEMP / HUM / FAN", 32, 196);
-    tft_.setTextColor(kTextPrimary, kPanelFill);
-    const String liveInfo = buildLiveInfo(status);
-    tft_.drawString(liveInfo, 32, 214);
+    statusOled_.setCursor(0, 48);
+    statusOled_.print("M:");
+    statusOled_.print(fitLine(status.mode.length() > 0 ? status.mode : "offline", 8));
+    statusOled_.print(" F:");
+    statusOled_.print(fitLine(status.fanMode, 4));
 
-    tft_.fillRoundRect(24, 242, 166, 28, 8, kPanelFill);
-    tft_.setTextColor(kTextPrimary, kPanelFill);
-    const String footer = buildFooterText(status, lastMessage);
-    tft_.drawString(footer, 32, 250);
+    statusOled_.setCursor(0, 58);
+    statusOled_.print("C:");
+    statusOled_.print(status.curtainAngle);
+    statusOled_.print(" ");
+    statusOled_.print(fitLine(buildFooterText(status, lastMessage), 12));
+
+    statusOled_.display();
 }
 
 void OutputManager::updateRgb(const String &smokeLevel)
@@ -326,49 +239,8 @@ void OutputManager::updateRgb(const String &smokeLevel)
     digitalWrite(client_config::kRgbBluePin, blue ? HIGH : LOW);
 }
 
-void OutputManager::renderLcd(const ClientWiFiManager &wifiManager,
-                              const ServerStatus &status)
-{
-    // 文本保持紧凑，适配 16x2 字符 LCD。
-    if (!lcdReady_)
-    {
-        return;
-    }
-
-    String line1 = wifiManager.isConnected() ? wifiManager.currentSsid() : "wifi offline";
-    if (line1.length() == 0)
-    {
-        line1 = "wifi waiting";
-    }
-
-    String line2 = String("C") + status.curtainAngle +
-                   " F" + status.fanMode +
-                   " " + status.smokeLevel;
-
-    lcd_.setCursor(0, 0);
-    lcd_.print(fit16(line1));
-    lcd_.setCursor(0, 1);
-    lcd_.print(fit16(line2));
-}
-
-String OutputManager::fit16(const String &text) const
-{
-    // 裁剪并补齐字符串到一行 LCD 宽度。
-    String out = text;
-    if (out.length() > 16)
-    {
-        out = out.substring(0, 16);
-    }
-    while (out.length() < 16)
-    {
-        out += ' ';
-    }
-    return out;
-}
-
 String OutputManager::buildClockText() const
 {
-    // NTP 时间未就绪时返回占位文本。
     struct tm timeinfo;
     if (!getCurrentLocalTime(timeinfo))
     {
@@ -380,21 +252,17 @@ String OutputManager::buildClockText() const
 
 String OutputManager::buildDateText() const
 {
-    // 生成底部显示的紧凑月/日文本。
     struct tm timeinfo;
     if (!getCurrentLocalTime(timeinfo))
     {
-        return "-- --";
+        return "--/--";
     }
 
-    static const char *const kMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                                          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-    return String(kMonths[timeinfo.tm_mon]) + " " + String(timeinfo.tm_mday);
+    return formatTwoDigits(timeinfo.tm_mon + 1) + "/" + formatTwoDigits(timeinfo.tm_mday);
 }
 
 String OutputManager::buildWeekdayText() const
 {
-    // 生成 TFT 底部使用的短星期标签。
     struct tm timeinfo;
     if (!getCurrentLocalTime(timeinfo))
     {
@@ -407,7 +275,6 @@ String OutputManager::buildWeekdayText() const
 
 String OutputManager::buildConnectionBadge(const ClientWiFiManager &wifiManager) const
 {
-    // OFF：离线，AP：连接兜底热点，STA：连接常规路由。
     if (!wifiManager.isConnected())
     {
         return "OFF";
@@ -419,51 +286,45 @@ String OutputManager::buildConnectionBadge(const ClientWiFiManager &wifiManager)
     return "STA";
 }
 
-String OutputManager::buildLiveInfo(const ServerStatus &status) const
-{
-    // 生成与嵌入式界面一致的紧凑状态字符串。
-    return String(status.temperatureC, 1) + "C  " +
-           String(static_cast<int>(status.humidityPercent)) + "%  " +
-           status.fanMode;
-}
-
 String OutputManager::buildFooterText(const ServerStatus &status,
                                       const String &lastMessage) const
 {
-    // 优先显示最近操作消息，否则回退到安全/系统状态。
     String footer = lastMessage;
     if (footer.length() == 0)
     {
-        footer = status.flameDetected ? "flame_detected" : "screen_ready";
+        footer = status.flameDetected ? "flame" : buildSmokeLabel(status.smokeLevel);
     }
-    if (footer.length() > 24)
-    {
-        footer = footer.substring(0, 24);
-    }
-    return footer;
+    return fitLine(footer, 24);
 }
 
-uint16_t OutputManager::smokeColor565(const String &smokeLevel) const
+String OutputManager::buildSmokeLabel(const String &smokeLevel) const
 {
-    // 烟雾指示点的 RGB565 颜色选择。
     if (smokeLevel == "green")
     {
-        return TFT_GREEN;
+        return "safe";
     }
     if (smokeLevel == "blue")
     {
-        return TFT_CYAN;
+        return "cool";
     }
     if (smokeLevel == "yellow")
     {
-        return TFT_ORANGE;
+        return "warn";
     }
-    return TFT_RED;
+    return "alarm";
+}
+
+String OutputManager::fitLine(const String &text, size_t maxLength) const
+{
+    if (text.length() <= maxLength)
+    {
+        return text;
+    }
+    return text.substring(0, maxLength);
 }
 
 void OutputManager::syncSystemTime(const ClientWiFiManager &wifiManager)
 {
-    // 时间同步需要联网，并按配置间隔重试。
     if (!wifiManager.isConnected())
     {
         return;
@@ -471,7 +332,6 @@ void OutputManager::syncSystemTime(const ClientWiFiManager &wifiManager)
 
     if (!timeConfigApplied_)
     {
-        // 仅一次性应用时区和 NTP 服务器配置。
         configTzTime(client_config::kTimeZone,
                      client_config::kNtpServerPrimary,
                      client_config::kNtpServerSecondary);
@@ -516,7 +376,6 @@ void OutputManager::syncSystemTime(const ClientWiFiManager &wifiManager)
 
 bool OutputManager::getCurrentLocalTime(struct tm &timeinfo) const
 {
-    // 过滤明显无效的 RTC/NTP 时间值。
     if (!getLocalTime(&timeinfo, 10))
     {
         return false;

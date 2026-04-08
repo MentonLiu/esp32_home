@@ -38,27 +38,20 @@ namespace client_config
     constexpr uint8_t kDiagnosticsLogLevel = 3;
     constexpr unsigned long kDiagnosticsPeriodicLogMs = 2000UL;
 
-    // 8Pin 显示器切到 LVGL 驱动，当前先完成底层初始化与留白显示。
-    constexpr bool kEnableTft = true;
-    constexpr bool kEnableLcd1602 = true;
+    // 原 TFT/LCD 显示方案已停用，改为双四针 I2C OLED。
+    constexpr bool kEnableSensorOled = true;
+    constexpr bool kEnableStatusOled = true;
 
-    // TFT SPI 引脚（240x320 SPI 屏幕）。
-    constexpr uint8_t kTftSclk = 18;
-    constexpr uint8_t kTftMosi = 23;
-    constexpr int8_t kTftMiso = -1;
-    constexpr uint8_t kTftRst = 17;
-    constexpr uint8_t kTftDc = 16;
-    constexpr uint8_t kTftCs = 27;
-    constexpr uint8_t kTftBacklight = 19;
-    constexpr uint16_t kTftWidth = 240;
-    constexpr uint16_t kTftHeight = 320;
-
-    // LCD1602 I2C 参数。
-    constexpr uint8_t kLcdSda = 21;
-    constexpr uint8_t kLcdScl = 22;
-    constexpr uint8_t kLcdAddress = 0x27;
-    constexpr uint8_t kLcdColumns = 16;
-    constexpr uint8_t kLcdRows = 2;
+    // 双 OLED 分别使用独立 I2C 总线，避免地址冲突。
+    constexpr uint8_t kSensorOledSda = 21;
+    constexpr uint8_t kSensorOledScl = 22;
+    constexpr uint8_t kStatusOledSda = 23;
+    constexpr uint8_t kStatusOledScl = 18;
+    constexpr uint8_t kSensorOledAddress = 0x3C;
+    constexpr uint8_t kStatusOledAddress = 0x3C;
+    constexpr int8_t kOledResetPin = -1;
+    constexpr uint8_t kOledWidth = 128;
+    constexpr uint8_t kOledHeight = 64;
 
     // RGB 指示灯。
     constexpr uint8_t kRgbRedPin = 25;
