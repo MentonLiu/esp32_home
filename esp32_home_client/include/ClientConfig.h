@@ -59,10 +59,10 @@ namespace client_config
     constexpr uint8_t kRgbBluePin = 15;
 
     // 四个独立按钮：按钮 1/2 控制窗帘和风扇状态，按钮 3/4 预留。
-    constexpr uint8_t kButton1Pin = 32;
-    constexpr uint8_t kButton2Pin = 33;
-    constexpr uint8_t kButton3Pin = 26;
-    constexpr uint8_t kButton4Pin = 13;
+    constexpr uint8_t kButton1Pin = 32; // 窗帘状态切换
+    constexpr uint8_t kButton2Pin = 33; // 窗帘/风扇状态切换
+    constexpr uint8_t kButton3Pin = 26; // 预留
+    constexpr uint8_t kButton4Pin = 13; // 预留
 
 } // namespace client_config
 
