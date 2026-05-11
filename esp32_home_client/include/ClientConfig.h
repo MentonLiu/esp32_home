@@ -9,8 +9,8 @@
 namespace client_config
 {
     // 已知的目标网络：优先家庭路由器，其次服务端兜底热点。
-    constexpr const char *kPrimaryWifiSsid = "HW-2103";
-    constexpr const char *kPrimaryWifiPassword = "20220715";
+    constexpr const char *kPrimaryWifiSsid = "iPadmini"; // 手机热点
+    constexpr const char *kPrimaryWifiPassword = "lbl450981";
     constexpr const char *kServerApSsid = "esp32-server";
     constexpr const char *kServerApPassword = "lbl450981";
 
