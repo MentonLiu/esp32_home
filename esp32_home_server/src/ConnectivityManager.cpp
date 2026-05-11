@@ -208,12 +208,15 @@ void ConnectivityManager::evaluateMode()
     if (isInternetConnected())
     {
         stationConnectInProgress_ = false;
+        stopLocalAp();
         mode_ = OperatingMode::Cloud;
         ensureMdnsState();
         announceAccessUrl();
         return;
     }
 
+    // 联网失败，启动本地 AP 作为兜底。
+    startLocalAp();
     mode_ = OperatingMode::LocalAP;
     ensureMdnsState();
     announceAccessUrl();
