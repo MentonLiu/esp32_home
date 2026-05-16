@@ -308,13 +308,13 @@
                     <h2>MQTT 连接</h2>
                     <div class="config-grid">
                         <label>WebSocket URL
-                            <input id="wsUrl" value="ws://192.168.31.204:8083/mqtt" />
+                            <input id="wsUrl" value="ws://117.72.207.199:8083/mqtt" />
                         </label>
                         <label>Client ID
                             <input id="clientId" value="nas-console-01" />
                         </label>
                         <label>用户名
-                            <input id="username" value="test_link" />
+                            <input id="username" value="user_link" />
                         </label>
                         <label>密码
                             <input id="password" type="password" value="lbl450981" />
@@ -512,6 +512,12 @@
                         els[key].value = cfg[key];
                     }
                 });
+                const legacyUsers = new Set(['test_link', 'esp32_server']);
+                if (legacyUsers.has(els.username.value.trim()) && els.password.value === 'lbl450981') {
+                    // 兼容旧本地配置：云端改造后统一使用 user_link 账号。
+                    els.username.value = 'user_link';
+                    log('检测到旧账号，已自动迁移为 user_link。');
+                }
                 log('已加载本地配置。');
             } catch (err) {
                 log(`本地配置解析失败: ${err.message}`);
@@ -559,10 +565,12 @@
 
             let pending = topics.length;
             topics.forEach((topic) => {
-                state.client.subscribe(topic, { qos: 0 }, (err) => {
+                state.client.subscribe(topic, { qos: 0 }, (err, granted) => {
                     pending -= 1;
                     if (err) {
                         log(`订阅失败: ${topic} -> ${err.message}`);
+                    } else if (!Array.isArray(granted) || granted.some((item) => item.qos === 128)) {
+                        log(`订阅被拒绝: ${topic}（请检查用户名权限/ACL）`);
                     } else {
                         log(`订阅成功: ${topic}`);
                     }

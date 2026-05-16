@@ -42,6 +42,7 @@ namespace
     constexpr const char *kApSsid = "esp32-server";
     constexpr const char *kApPassword = "lbl450981";
     constexpr const char *kDhtModel = "DHT11";
+    constexpr size_t kMqttSensorPayloadWarnBytes = 900U;
 } // namespace
 
 CentralProcessor::CentralProcessor()
@@ -136,7 +137,22 @@ void CentralProcessor::loop()
     sensorDataProcessor_.loop();
     if (sensorDataProcessor_.shouldPublish())
     {
-        net_.mqttPublish(mqtt_upstream::sensorTopic(), sensorDataProcessor_.buildSensorJson());
+        const String payload = sensorDataProcessor_.buildSensorJson();
+        const size_t payloadLen = payload.length();
+        if (payloadLen > kMqttSensorPayloadWarnBytes)
+        {
+            LOG_WARN("MQTT", "传感器 payload 较大: len=%u topic=%s",
+                     static_cast<unsigned int>(payloadLen),
+                     mqtt_upstream::sensorTopic());
+        }
+
+        if (!net_.mqttPublish(mqtt_upstream::sensorTopic(), payload))
+        {
+            LOG_WARN("MQTT", "传感器发布失败: len=%u topic=%s cloudMode=%d",
+                     static_cast<unsigned int>(payloadLen),
+                     mqtt_upstream::sensorTopic(),
+                     net_.isCloudMode() ? 1 : 0);
+        }
     }
 
     // 自动化联动依赖最新传感器数据。

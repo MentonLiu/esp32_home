@@ -110,7 +110,7 @@ private:
     const char *mqttUser_ = nullptr;
     const char *mqttPassword_ = nullptr;
     const char *mqttControlTopic_ = nullptr;
-    uint16_t mqttPort_ = 1883;
+    uint16_t mqttPort_ = 1885;
 
     WiFiClient wifiClient_;
     PubSubClient mqttClient_;

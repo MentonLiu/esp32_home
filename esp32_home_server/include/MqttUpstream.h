@@ -19,7 +19,7 @@
  * 设计说明：
  *   - 使用命名空间避免全局污染
  *   - 所有配置集中在 MqttUpstream.cpp 中管理
- *   - 支持多个 NAS 上的 EMQX 实例通过 FRP 隈道访问
+ *   - 支持连接公网云服务器上的 EMQX 实例
  *   - 主题命名遵带 MQTT 最佳实践（分层结构）
  */
 
@@ -36,8 +36,8 @@ namespace mqtt_upstream
      * 功能：集中存储连接云端 MQTT 服务器所需的所有配置参数
      *
      * 成员说明：
-     *   - host: MQTT 服务器地址（如 "frp-era.com"），支持域名和 IP
-     *   - port: MQTT 服务器端口（标准 1883、安全 8883、FRP 映射端口 10883 等）
+     *   - host: MQTT 服务器地址（如 "117.72.207.199"），支持域名和 IP
+     *   - port: MQTT 服务器端口（如 1885、8883）
      *   - clientId: MQTT 客户端标识（如 "esp32-home-server"），用于服务器区分设备
      *   - user: 连接用户名（MQTT 认证），若为 nullptr 则不使用用户名认证
      *   - password: 连接密码（MQTT 认证），若为 nullptr 则不使用密码认证

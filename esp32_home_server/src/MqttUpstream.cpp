@@ -10,9 +10,9 @@
  *   - sensorTopic/statusTopic/alarmTopic/controlTopic() - 返回各类主题字符串
  *
  * 配置详情：
- *   - 云端：FRP 隈道映射到 NAS 上的 EMQX（frp-era.com:10883）
+ *   - 云端：EMQX 部署在云服务器（117.72.207.199:1885）
  *   - 客户端 ID: esp32-home-server
- *   - 用户名: esp32_server
+ *   - 用户名: user_link
  *   - 主题前缀：esp32/home/
  *
  * 依赖：MqttUpstream.h
@@ -29,12 +29,12 @@
 namespace
 {
     // 云端 MQTT 服务器配置（集中管理）
-    // 当前通过 FRP 隈道连接到 NAS 上的 EMQX 实例
+    // 当前直连云服务器上的 EMQX 实例
     constexpr mqtt_upstream::CloudConfig kCloudConfig = {
-        "frp-era.com",       // 云端服务器地址（FRP 隈道出口）
-        10883,               // MQTT 端口（非标准 10883 是 FRP 映射的自定义端口）
+        "117.72.207.199",    // 云端服务器地址（公网 IP）
+        1885,                // MQTT TCP 端口（云服务器开放端口）
         "esp32-home-server", // 客户端 ID（用于服务器识别本设备）
-        "esp32_server",      // MQTT 用户名（认证凭证）
+        "user_link",         // MQTT 用户名（认证凭证）
         "lbl450981"          // MQTT 密码（认证凭证）
     };
 

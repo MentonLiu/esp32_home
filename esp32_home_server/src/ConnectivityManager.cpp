@@ -32,6 +32,11 @@
 
 namespace
 {
+    constexpr unsigned long kModeCheckIntervalCloudMs = 10000UL;
+    constexpr unsigned long kModeCheckIntervalRecoveringMs = 3000UL;
+    constexpr uint16_t kMqttClientBufferSize = 1024U;
+    constexpr unsigned long kPublishWarnThrottleMs = 5000UL;
+
     bool isIpv4Literal(const char *host)
     {
         if (host == nullptr || *host == '\0')
@@ -73,6 +78,14 @@ void ConnectivityManager::begin()
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true);
     mqttClient_.setCallback(ConnectivityManager::handleMqttDispatch);
+    if (!mqttClient_.setBufferSize(kMqttClientBufferSize))
+    {
+        LOG_WARN("MQTT", "缓冲区设置失败，当前 size=%u", mqttClient_.getBufferSize());
+    }
+    else
+    {
+        LOG_INFO("MQTT", "缓冲区已设置为 %u", mqttClient_.getBufferSize());
+    }
 
     mode_ = OperatingMode::LocalAP;
 
@@ -101,7 +114,10 @@ void ConnectivityManager::loop()
     }
 
     // 定期重评模式，尝试恢复联网链路。
-    if (millis() - lastModeCheckMs_ >= 30000)
+    // 启动和离线恢复阶段用更短周期，减少进入云模式和 MQTT 可用的等待时间。
+    const unsigned long modeCheckIntervalMs =
+        (mode_ == OperatingMode::Cloud && isInternetConnected()) ? kModeCheckIntervalCloudMs : kModeCheckIntervalRecoveringMs;
+    if (millis() - lastModeCheckMs_ >= modeCheckIntervalMs)
     {
         lastModeCheckMs_ = millis();
         evaluateMode();
@@ -136,14 +152,36 @@ void ConnectivityManager::setMqttHandler(MqttHandler handler)
 
 bool ConnectivityManager::mqttPublish(const char *topic, const String &payload)
 {
+    static unsigned long lastWarnMs = 0;
+    const unsigned long now = millis();
+
     // 本地网页优先：发布路径不主动触发云端重连，避免阻塞 Web 响应。
     if (!mqttClient_.connected())
     {
+        if (now - lastWarnMs >= kPublishWarnThrottleMs)
+        {
+            LOG_WARN("MQTT", "发布失败(未连接): topic=%s len=%u state=%d cloudMode=%d",
+                     topic != nullptr ? topic : "<null>",
+                     static_cast<unsigned int>(payload.length()),
+                     mqttClient_.state(),
+                     isCloudMode() ? 1 : 0);
+            lastWarnMs = now;
+        }
         return false;
     }
 
     // PubSubClient 发送接口要求 C 字符串。
-    return mqttClient_.publish(topic, payload.c_str());
+    const bool ok = mqttClient_.publish(topic, payload.c_str());
+    if (!ok && now - lastWarnMs >= kPublishWarnThrottleMs)
+    {
+        LOG_WARN("MQTT", "发布失败: topic=%s len=%u state=%d buffer=%u",
+                 topic != nullptr ? topic : "<null>",
+                 static_cast<unsigned int>(payload.length()),
+                 mqttClient_.state(),
+                 mqttClient_.getBufferSize());
+        lastWarnMs = now;
+    }
+    return ok;
 }
 
 bool ConnectivityManager::isInternetConnected() const
@@ -370,7 +408,10 @@ bool ConnectivityManager::ensureMqttConnected()
     else if (!connected)
     {
         mqttRetryBackoffMs_ = 30000;
-        LOG_WARN("MQTT", "连接失败，30 秒后重试");
+        LOG_WARN("MQTT", "连接失败(state=%d host=%s port=%u)，30 秒后重试",
+                 mqttClient_.state(),
+                 mqttHost_ != nullptr ? mqttHost_ : "<null>",
+                 mqttPort_);
     }
 
     return connected;
