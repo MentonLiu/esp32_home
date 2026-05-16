@@ -1,5 +1,32 @@
-// 文件说明：esp32_home_server/src/CentralProcessor.cpp
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/src/CentralProcessor.cpp
+ * 功能说明：
+ *   - 实现系统模块的构造和初始化
+ *   - 实现主循环的事件驱动调度
+ *   - 维护所有模块之间的数据流和回调连接
+ *
+ * 核心实现：
+ *   - CentralProcessor::begin() - 按特定顺序初始化所有子模块
+ *   - CentralProcessor::loop() - 按优先级驱动子模块循环
+ *   - 模块间回调注册（MQTT 处理、Web 路由、传感器发布）
+ *
+ * 初始化顺序（关键）：
+ *   1. Logger - 全局日志服务
+ *   2. SensorHub - 传感器采集底层
+ *   3. 执行器（Controllerr) - 硬件初始化
+ *   4. ConnectivityManager - 网络和 WebServer
+ *   5. SensorDataProcessor, ControllerCommandProcessor - 数据处理
+ *   6. AutomationEngine - 自动化规则
+ *   7. LocalProcessingProgram - 本地 HTTP 路由
+ *
+ * 依赖：CentralProcessor.h, 所有子模块
+ * 被依赖于：main.cpp
+ *
+ * 设计细节：
+ *   - WiFi 连接超时 15 秒（影响启动时间）
+ *   - MQTT 首次连接最多重试 3 次
+ *   - 日志缓冲区 256 字节
+ */
 
 #include "CentralProcessor.h"
 

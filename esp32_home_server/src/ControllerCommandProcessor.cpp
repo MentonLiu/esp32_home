@@ -1,5 +1,24 @@
-// 文件说明：esp32_home_server/src/ControllerCommandProcessor.cpp
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/src/ControllerCommandProcessor.cpp
+ * 功能说明：
+ *   - 实现 JSON 命令解析和路由到各执行器
+ *   - 维护聚合的控制器状态（风扇、窗帘、蜂鸣器）
+ *   - 提供便捷的控制接口（直接方法调用）
+ *   - 跟踪手动窗帘控制时间戳用于自动化联动决策
+ *
+ * 核心实现：
+ *   - ControllerCommandProcessor::processCommandJson() - JSON 命令解析与执行
+ *   - ControllerCommandProcessor::refreshState() - 状态同步
+ *   - 各执行器的便捷控制方法
+ *
+ * 依赖：ControllerCommandProcessor.h, Controllerr.h, ArduinoJson 库
+ * 被依赖于：ConnectivityManager.cpp, AutomationEngine.cpp, LocalProcessingProgram.cpp
+ *
+ * 设计细节：
+ *   - 支持三类命令来源标记：LocalWeb、CloudMqtt、Automation（用于后期审计）
+ *   - 命令执行后自动调用 refreshState() 同步硬件真实状态
+ *   - 手动窗帘控制时间戳用于实现 30 分钟手动覆盖期（防止自动化干扰）
+ */
 
 #include "ControllerCommandProcessor.h"
 

@@ -1,5 +1,29 @@
-// 文件说明：esp32_home_server/include/Controllerr.h
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/include/Controllerr.h
+ * 功能说明：
+ *   - 提供三类执行器驱动：风扇（PWM）、窗帘（双舵机）、蜂鸣器（PWM）
+ *   - 风扇驱动支持 Off/Low/Medium/High 四档，内部映射为 0-100% PWM
+ *   - 窗帘驱动支持两个舵机反向联动，实现单逻辑角度控制与预设档位
+ *   - 蜂鸣器驱动支持单次鸣叫和告警模式，使用队列实现多段非阻塞控制
+ *
+ * 核心类：
+ *   - class RelayFanController - 直流电机 PWM 风扇控制
+ *   - class DualCurtainController - 双舵机窗帘控制
+ *   - class BuzzerController - PWM 蜂鸣器控制
+ *
+ * 依赖：pins.h, SystemContracts.h, Logger.h, ESP32Servo 库
+ * 被依赖于：ControllerCommandProcessor.h, CentralProcessor.h
+ *
+ * 硬件连接说明：
+ *   - 风扇：PWM 输出接 MOSFET/电机驱动板，不能直接接机械继电器
+ *   - 窗帘：两个舵机信号脚分别接 GPIO16、GPIO17
+ *   - 蜂鸣器：PWM 输出脚接蜂鸣器正极（负极接 GND）
+ *
+ * 设计详情：
+ *   - 风扇 PWM 频率 2kHz（常见电机驱动板兼容性最好）
+ *   - 舵机为非阻塞设计，需要定期调用 loop() 维护释放状态
+ *   - 蜂鸣器使用队列支持多段复杂告警模式
+ */
 
 #ifndef CONTROLLERR_H
 #define CONTROLLERR_H
@@ -9,9 +33,17 @@
 
 #include "SystemContracts.h"
 
-// 风扇控制器（历史命名保留为 RelayFanController）：
-// 实际实现是“PWM 风扇驱动”，需要外部 MOSFET/电机驱动板，
-// 不能直接通过机械继电器实现速度控制。
+/**
+ * 风扇控制器（历史命名保留为 RelayFanController）
+ *
+ * 功能：
+ *   - 实现 PWM 风扇速度控制（需要 MOSFET/电机驱动模块）
+ *   - 支持四档模式映射到固定速度百分比
+ *   - 直接速度百分比设置 (0-100)
+ *   - 提供状态查询接口
+ *
+ * 注意：实际实现是 PWM，不能通过机械继电器实现速度控制
+ */
 class RelayFanController
 {
 public:

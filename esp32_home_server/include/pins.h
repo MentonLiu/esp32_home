@@ -1,5 +1,27 @@
-// 文件说明：esp32_home_server/include/pins.h
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/include/pins.h
+ * 功能说明：
+ *   - 定义 ESP32 Home 系统中所有硬件 GPIO 引脚的常量
+ *   - 包括传感器输入引脚（DHT11、光照、烟雾、雨滴）
+ *   - 包括执行器输出引脚（风扇 PWM、窗帘舵机、蜂鸣器）
+ *
+ * 核心常量：
+ *   - DHT_DATA (GPIO13) - DHT11 温湿度传感器数据线
+ *   - LIGHT_ANALOG (GPIO4) - 光照传感器模拟输入
+ *   - MQ2_ANALOG (GPIO5) - MQ2 烟雾传感器模拟输入
+ *   - RAIN_ANALOG (GPIO6) - 雨滴传感器模拟输入
+ *   - FAN_PWM (GPIO18) - 风扇 PWM 控制输出
+ *   - CURTAIN_SERVO_A (GPIO16) - 窗帘舵机 A 控制
+ *   - CURTAIN_SERVO_B (GPIO17) - 窗帘舵机 B 控制
+ *   - BUZZER (GPIO12) - 蜂鸣器 PWM 输出
+ *
+ * 被依赖于：Sensor.h, Controllerr.h, 以及所有硬件驱动模块
+ *
+ * 设计说明：
+ *   - 使用命名空间 pins 管理所有引脚常量
+ *   - 所有常量使用 static constexpr 确保编译期确定
+ *   - GPIO 分配避免与系统预留脚位冲突（如 UART 脚位）
+ */
 
 #ifndef PINS_H
 #define PINS_H

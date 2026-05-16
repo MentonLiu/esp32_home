@@ -1,5 +1,25 @@
-// 文件说明：esp32_home_server/src/Sensor.cpp
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/src/Sensor.cpp
+ * 功能说明：
+ *   - 实现 DhtSensor 类：DHT11 读取、缓存、失败恢复逻辑
+ *   - 实现 AnalogPercentSensor 类：ADC 读取和百分比映射
+ *   - 实现 SensorHub 类：多传感器聚约、定时采样、数据融合
+ *
+ * 核心实现：
+ *   - DhtSensor::read() - 处理缓存、失败重试、旧值优先逻辑
+ *   - AnalogPercentSensor::readPercent() - ADC 读取和线性映射
+ *   - SensorHub::poll() - 多传感器采样、烟雾分级、数据聚约
+ *
+ * 依赖：Sensor.h, Logger.h, math.h
+ * 被依赖于：SensorDataProcessor.cpp, AutomationEngine.cpp
+ *
+ * 设计细节：
+ *   - DHT 最小采样间隔常量 kDhtMinReadIntervalMs = 2200ms
+ *   - DHT 失败时重试 2 次，每次间隔 30ms
+ *   - DHT 警告日志每 10 秒最多打印一次（避免日志爆炸）
+ *   - 烟雾分级阈值：>75 (yellow)，>90 (red)
+ *   - ADC 支持低体高反转配置，适配不同传感器极性
+ */
 
 #include "Sensor.h"
 

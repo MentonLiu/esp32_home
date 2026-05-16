@@ -1,5 +1,27 @@
-// 文件说明：esp32_home_server/src/AutomationEngine.cpp
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/src/AutomationEngine.cpp
+ * 功能说明：
+ *   - 实现六大自动化规则的核心逻辑
+ *   - 实现时间源管理（NTP 获取 + 本地回退）
+ *   - 实现手动覆盖机制（30 分钟禁用自动化）
+ *   - 实现动作冷却期防止频繁切换
+ *
+ * 核心实现：
+ *   - AutomationEngine::loop() - 驱动所有自动化检查
+ *   - AutomationEngine::checkScheduleRules() - 时间-动作规则
+ *   - AutomationEngine::checkSensorRules() - 传感器-动作联动
+ *   - AutomationEngine::syncTime() - NTP 和本地时间回退
+ *
+ * 依赖：AutomationEngine.h, ConnectivityManager.h, ControllerCommandProcessor.h
+ * 被依赖于：CentralProcessor.cpp, main.cpp
+ *
+ * 设计细节：
+ *   - NTP 服务器："pool.ntp.org"，超时 10 秒
+ *   - 本地时间基准：2026-01-01（编译时确定）
+ *   - 手动覆盖期 30 分钟，从手动操作开始计算
+ *   - 各规则冷却期 10 秒（防止频繁切换）
+ *   - 烟雾告警分级：80% 开启、90% 加快
+ */
 
 #include "AutomationEngine.h"
 

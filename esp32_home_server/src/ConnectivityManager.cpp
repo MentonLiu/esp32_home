@@ -1,5 +1,27 @@
-// 文件说明：esp32_home_server/src/ConnectivityManager.cpp
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/src/ConnectivityManager.cpp
+ * 功能说明：
+ *   - 实现 WiFi 连接逻辑和失败切换到 AP 模式
+ *   - 实现 MQTT 客户端生命周期管理
+ *   - 实现 Web 服务器启动和路由注册
+ *   - 实现 mDNS 服务发现
+ *
+ * 核心实现：
+ *   - ConnectivityManager::begin() - 初始化所有网络服务
+ *   - ConnectivityManager::loop() - 驱动网络状态机
+ *   - WiFi 连接失败时自动切换到 AP 模式
+ *   - MQTT 自动重连实现（指数退避）
+ *   - Web 路由注册和 HTTP 请求分发
+ *
+ * 依赖：ConnectivityManager.h, Logger.h, WiFi、PubSubClient、WebServer 库
+ * 被依赖于：CentralProcessor.cpp, main.cpp
+ *
+ * 设计细节：
+ *   - AP 热点 SSID 前缀："ESP32-Home-"
+ *   - MQTT 自动重连间隔最大 60 秒（指数退避）
+ *   - WebServer 监听端口 80
+ *   - mDNS 主机名："esp32-home"（可通过 esp32-home.local 访问）
+ */
 
 #include "ConnectivityManager.h"
 

@@ -1,5 +1,28 @@
-// 文件说明：esp32_home_server/include/ConnectivityManager.h
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/include/ConnectivityManager.h
+ * 功能说明：
+ *   - 管理 WiFi 连接与失败切换（STA 客户端 → AP 热点）
+ *   - 维护 MQTT 消息客户端（PubSubClient），支持自动重连
+ *   - 托管内置 LittleFS Web 服务器，提供页面和 JSON API
+ *   - 管理 mDNS 服务发现，支持通过 hostname.local 访问
+ *   - 提供事件驱动的 MQTT 消息处理回调机制
+ *
+ * 核心方法：
+ *   - begin() - 初始化网络、Web 服务、MQTT 客户端
+ *   - loop() - 驱动所有网络状态机
+ *   - registerMqttHandler() - 注册 MQTT 消息处理器
+ *   - publish() - 发布 MQTT 消息
+ *   - isConnected() - 查询网络和 MQTT 连接状态
+ *
+ * 依赖：SystemContracts.h, Logger.h, WiFi、PubSubClient、WebServer、mDNS 库
+ * 被依赖于：CentralProcessor.h, main.cpp, AutomationEngine.h
+ *
+ * 设计细节：
+ *   - WiFi 连接失败时自动启动 AP 模式（默认 SSID: ESP32-Home）
+ *   - MQTT 自动重连机制，失败时不阻塞主循环
+ *   - Web 服务支持静态页面和 JSON API（/api/status、/api/control）
+ *   - mDNS 记录用于局域网内服务发现
+ */
 
 #ifndef CONNECTIVITY_MANAGER_H
 #define CONNECTIVITY_MANAGER_H

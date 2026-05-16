@@ -1,5 +1,28 @@
-// 文件说明：esp32_home_server/include/SystemContracts.h
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/include/SystemContracts.h
+ * 功能说明：
+ *   - 定义系统级数据结构和枚举，作为不同模块间的数据契约
+ *   - 包括系统运行模式、命令来源、风扇档位等枚举定义
+ *   - 定义标准化传感器数据结构（StandardSensorData）- 全系统统一数据总线
+ *   - 定义控制器状态结构（ControllerState）- 执行器聚合状态表示
+ *   - 定义命令处理结果结构（CommandResult）- 统一的命令返回格式
+ *
+ * 核心类型：
+ *   - enum class OperatingMode - 云端/本地 AP 运行模式切换
+ *   - enum class CommandSource - 命令来源跟踪（本地Web、云端MQTT、自动化）
+ *   - enum class FanMode - 风扇档位抽象（Off/Low/Medium/High）
+ *   - struct StandardSensorData - 传感器采样的完整数据包
+ *   - struct ControllerState - 执行器状态的完整快照
+ *   - struct CommandResult - 命令执行结果
+ *
+ * 被依赖于：AutomationEngine.h, ControllerCommandProcessor.h, SensorDataProcessor.h,
+ *           ConnectivityManager.h, 以及所有需要数据交互的模块
+ *
+ * 设计说明：
+ *   - StandardSensorData 是系统的"中央数据总线"，HTTP 和 MQTT 均从此派生
+ *   - 所有枚举使用 uint8_t 底层类型优化存储空间
+ *   - 结构体包含完整的状态标志（hasError、sensorStale）用于错误处理
+ */
 
 #ifndef SYSTEM_CONTRACTS_H
 #define SYSTEM_CONTRACTS_H

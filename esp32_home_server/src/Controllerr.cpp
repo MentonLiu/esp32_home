@@ -1,5 +1,24 @@
-// 文件说明：esp32_home_server/src/Controllerr.cpp
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/src/Controllerr.cpp
+ * 功能说明：
+ *   - 实现 RelayFanController：PWM 风扇速度控制、档位映射
+ *   - 实现 DualCurtainController：舵机控制、自动释放机制、预设档位
+ *   - 实现 BuzzerController：蜂鸣器 PWM 驱动、告警模式、多段队列
+ *
+ * 核心实现：
+ *   - RelayFanController::setSpeedPercent() - 百分比转 8bit PWM 占空比
+ *   - DualCurtainController::setAngle() - 反向舵机联动、自动释放
+ *   - BuzzerController::beep() - 单次或多段蜂鸣，非阻塞队列实现
+ *
+ * 依赖：Controllerr.h, Logger.h, ESP32Servo 库
+ * 被依赖于：ControllerCommandProcessor.cpp, CentralProcessor.cpp
+ *
+ * 设计细节：
+ *   - 风扇 PWM 频率 2kHz（8bit 分辨率，通常电机驱动板最佳兼容）
+ *   - 风扇档位映射：Off(0%) → Low(30%) → Medium(65%) → High(100%)
+ *   - 舵机 hold 时间 450ms（保证驱动稳定），超时自动释放（省电防抖）
+ *   - 蜂鸣器队列容量 8 段，支持复杂告警旋律
+ */
 
 #include "Controllerr.h"
 

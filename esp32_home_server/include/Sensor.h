@@ -1,5 +1,28 @@
-// 文件说明：esp32_home_server/include/Sensor.h
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/include/Sensor.h
+ * 功能说明：
+ *   - 包裹 DHT11 温湿度传感器与模拟传感器（光照、烟雾、雨滴）
+ *   - 处理 DHT 的最小采样间隔、读取失败不急读取、传感器默认值
+ *   - 将模拟传感器的采样值映射为 0-100 百分比
+ *   - 聚合传感器数据并实现自动采样、传感器程度低不例读取
+ *   - 烟雾自动分级为 green/blue/yellow/red
+ *
+ * 核心类：
+ *   - struct SensorSnapshot - 从物理传感器采样得到的原始快照
+ *   - struct DhtReadResult - DHT 一次读取的结果
+ *   - class DhtSensor - DHT11 温湿度传感器封装
+ *   - class AnalogPercentSensor - 通用模拟传感器抄表
+ *   - class SensorHub - 传感器聚约者
+ *
+ * 依赖：pins.h, SystemContracts.h, Logger.h, DHT 库
+ * 被依赖于：SensorDataProcessor.h, AutomationEngine.h
+ *
+ * 设计详情：
+ *   - DHT 控制采样间隔，至少 2.2秒间隔
+ *   - DHT 读取失败自动优先使用旧值
+ *   - 模拟传感器支持低体高反转（光照传感器一般低体有效）
+ *   - 烟雾自动分级为 green/blue/yellow/red 四个步段
+ */
 
 #ifndef SENSOR_H
 #define SENSOR_H
@@ -7,7 +30,11 @@
 #include <Arduino.h>
 #include <DHT.h>
 
-// 从物理传感器采样得到的原始快照。
+/**
+ * 从物理传感器采样得到的原始快照
+ *
+ * 功能：包含一次采样中所有传感器的数据、错误状态、时间戳
+ */
 struct SensorSnapshot
 {
     float temperatureC = 0.0F;

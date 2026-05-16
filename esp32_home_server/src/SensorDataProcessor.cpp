@@ -1,5 +1,25 @@
-// 文件说明：esp32_home_server/src/SensorDataProcessor.cpp
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/src/SensorDataProcessor.cpp
+ * 功能说明：
+ *   - 实现传感器数据处理逻辑：轮询、归一化、JSON 序列化
+ *   - 处理雨滴状态滞回（阈值：开启 25%，关闭 15%）
+ *   - 提供两类 JSON 输出：传感器遥测和完整系统状态
+ *   - 实现发布节流控制（默认 500ms）
+ *
+ * 核心实现：
+ *   - SensorDataProcessor::loop() - 驱动采样和数据更新
+ *   - SensorDataProcessor::normalize() - 映射原始数据到统一格式
+ *   - SensorDataProcessor::buildSensorJson() - 传感器遥测 JSON
+ *   - SensorDataProcessor::buildStatusJson() - 完整状态 JSON
+ *
+ * 依赖：SensorDataProcessor.h, Sensor.h, ArduinoJson 库
+ * 被依赖于：ConnectivityManager.cpp, LocalProcessingProgram.cpp
+ *
+ * 设计细节：
+ *   - 雨滴滞回防止频繁切换（开启 25%，关闭 15%）
+ *   - 烟雾自动分级：green (0-75%)、blue/yellow (75-90%)、red (>90%)
+ *   - 发布节流避免网络消息洪泛和 MQTT 带宽浪费
+ */
 
 #include "SensorDataProcessor.h"
 

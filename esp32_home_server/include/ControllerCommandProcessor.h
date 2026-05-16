@@ -1,5 +1,26 @@
-// 文件说明：esp32_home_server/include/ControllerCommandProcessor.h
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/include/ControllerCommandProcessor.h
+ * 功能说明：
+ *   - 解析并转发 JSON 控制命令到风扇、窗帘、蜂鸣器驱动器
+ *   - 维护聚合的控制器状态快照（ControllerState）
+ *   - 跟踪手动窗帘控制时间戳（用于自动化联动的手动覆盖逻辑）
+ *   - 提供多种便捷方法直接控制执行器
+ *
+ * 核心方法：
+ *   - processCommandJson() - 解析 JSON 命令，执行并返回结果
+ *   - setFanMode/setFanSpeedPercent() - 风扇控制
+ *   - setCurtainAngle/setCurtainPreset() - 窗帘控制
+ *   - beep() - 蜂鸣器控制
+ *   - state() - 获取当前状态快照
+ *
+ * 依赖：Controllerr.h, SystemContracts.h, Logger.h, ArduinoJson 库
+ * 被依赖于：ConnectivityManager.h, AutomationEngine.h, LocalProcessingProgram.h
+ *
+ * 设计细节：
+ *   - 支持三类命令来源：LocalWeb、CloudMqtt、Automation（用于审计）
+ *   - 手动窗帘控制时间戳用于判断是否在手动覆盖周期内
+ *   - 所有控制方法都通过回读硬件驱动器状态来更新内部状态
+ */
 
 #ifndef CONTROLLER_COMMAND_PROCESSOR_H
 #define CONTROLLER_COMMAND_PROCESSOR_H

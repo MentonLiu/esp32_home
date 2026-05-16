@@ -1,5 +1,25 @@
-// 文件说明：esp32_home_server/include/SensorDataProcessor.h
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/include/SensorDataProcessor.h
+ * 功能说明：
+ *   - 轮询 SensorHub 获取新样本，并将原始数据映射到 StandardSensorData
+ *   - 序列化为两类 JSON：传感器遥测数据和完整系统状态
+ *   - 提供发布节流控制（避免消息洪泛）
+ *   - 实现雨滴状态滞回（避免阈值边界抖动）
+ *
+ * 核心方法：
+ *   - loop() - 驱动采样流程，返回是否产出新样本
+ *   - buildSensorJson() - 构建仅传感器数据 JSON（MQTT 上行遥测用）
+ *   - buildStatusJson() - 构建完整状态 JSON（页面和调试接口用）
+ *   - shouldPublish() - 控制发布频率（节流）
+ *
+ * 依赖：Sensor.h, SystemContracts.h, Logger.h, ArduinoJson 库
+ * 被依赖于：ConnectivityManager.h, LocalProcessingProgram.h
+ *
+ * 设计细节：
+ *   - 发布节流默认 500ms，防止过频繁的网络消息
+ *   - 雨滴状态滞回避免阈值边界抖动导致窗帘频繁切换
+ *   - 数据归一化处理：光照、烟雾等映射为百分比，确保 UI 一致性
+ */
 
 #ifndef SENSOR_DATA_PROCESSOR_H
 #define SENSOR_DATA_PROCESSOR_H

@@ -1,5 +1,27 @@
-// 文件说明：esp32_home_server/src/LocalProcessingProgram.cpp
-// 该文件属于 ESP32 Home 项目，用于对应模块的声明或实现。
+/**
+ * 文件：esp32_home_server/src/LocalProcessingProgram.cpp
+ * 功能说明：
+ *   - 实现 HTTP 路由处理程序的注册
+ *   - 实现静态网页文件服务（从 LittleFS 加载）
+ *   - 实现 JSON API 端点（/api/status、/api/control）
+ *   - 处理本地网络命令并转发给控制处理器
+ *
+ * 核心实现：
+ *   - LocalProcessingProgram::begin() - 注册所有 HTTP 处理程序
+ *   - LocalProcessingProgram::loop() - 驱动 WebServer 请求分发
+ *   - handleStatus() - GET /api/status 实现
+ *   - handleControl() - POST /api/control 实现
+ *   - handleIndex() - 静态页面服务
+ *
+ * 依赖：LocalProcessingProgram.h, ConnectivityManager.h, Logger.h, LittleFS、ArduinoJson 库
+ * 被依赖于：CentralProcessor.cpp, main.cpp
+ *
+ * 设计细节：
+ *   - 所有 API 响应使用 JSON 格式
+ *   - 网页首页来自 LittleFS:/index.html
+ *   - 本地命令来源统一标记为 LocalWeb（用于审计）
+ *   - 支持 CORS 预检请求（可选）
+ */
 
 #include "LocalProcessingProgram.h"
 
